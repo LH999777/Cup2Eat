@@ -1,3060 +1,984 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { initializeApp } from 'firebase/app';
-import {
-  getAuth,
-  signInAnonymously,
-  signInWithCustomToken,
-  onAuthStateChanged,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut
-} from 'firebase/auth';
-import {
-  getFirestore,
-  doc,
-  setDoc,
-  updateDoc,
-  onSnapshot,
-  collection,
-  writeBatch,
-  increment
-} from 'firebase/firestore';
-import {
-  ShoppingBag,
-  User,
-  ShieldCheck,
-  Sparkles,
-  Leaf,
-  Clock,
-  Award,
-  Plus,
-  Minus,
-  X,
-  CheckCircle2,
-  Truck,
-  Package,
-  FileText,
-  Printer,
-  Phone,
-  Mail,
-  MessageCircle,
-  ArrowRight,
-  Star,
-  LayoutDashboard,
-  Boxes,
-  TrendingUp,
-  AlertTriangle,
-  CreditCard,
-  QrCode,
-  Building2,
-  ChevronRight,
-  LogOut,
-  Coffee,
-  PlusCircle,
-  Wifi,
-  WifiOff,
-  Lock,
-  Edit3,
-  Check
-} from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CUP2EAT – Eat Your Drink! | Luxury Edible Biscuit Cups</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #FAF6F0; color: #23150E; }
+    .font-serif-luxury { font-family: 'Playfair Display', serif; }
+    @media print {
+      body * { visibility: hidden; }
+      #printable-invoice, #printable-invoice * { visibility: visible; }
+      #printable-invoice { position: fixed; left: 0; top: 0; width: 100%; background: white; padding: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
 
-// ============================================================================
-// FIREBASE INITIALIZATION (Uses Canvas Environment Config with Safe Fallback)
-// ============================================================================
-const rawFirebaseConfig =
-  typeof __firebase_config !== 'undefined'
-    ? JSON.parse(__firebase_config)
-    : {
-        apiKey: 'AIzaSyDemoKeyForCup2EatStorefront',
-        authDomain: 'cup2eat-india.firebaseapp.com',
-        projectId: 'cup2eat-india',
-        storageBucket: 'cup2eat-india.appspot.com',
-        messagingSenderId: '109283746501',
-        appId: '1:109283746501:web:c2e9818192575'
-      };
+  <script type="text/babel">
+    const { useState, useMemo } = React;
 
-const app = initializeApp(rawFirebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'cup2eat-live-store';
-
-// ============================================================================
-// SIGNATURE CUP2EAT CATALOGUE SEED DATA
-// ============================================================================
-const INITIAL_PRODUCTS = [
-  {
-    id: 'prod-choc',
-    name: 'Dark Belgian Chocolate Edible Cups',
-    flavour: 'Chocolate',
-    tagline: 'Rich Cocoa Wafer • Holds Hot Espresso 45+ Mins',
-    description:
-      'Crisp artisan wafer biscuit coated inside with velvety 70% Dark Belgian couverture chocolate. Holds piping hot espresso or cappuccino without softening.',
-    basePrice: 349,
-    rating: 4.9,
-    reviews: 214,
-    badge: 'Bestseller',
-    stock: 48,
-    sku: 'C2E-CHOC-01',
-    hsn: '19053290',
-    accentColor: '#3B2314',
-    packOptions: [
-      { size: 'Box of 12', count: 12, multiplier: 1, discountLabel: '' },
-      { size: 'Box of 24', count: 24, multiplier: 1.85, discountLabel: 'Save 8%' },
-      { size: 'Cafe Pack of 50', count: 50, multiplier: 3.6, discountLabel: 'Save 14%' }
-    ]
-  },
-  {
-    id: 'prod-van',
-    name: 'Madagascar Vanilla Edible Cups',
-    flavour: 'Vanilla',
-    tagline: 'Aromatic Vanilla Bean Crunch • Ideal for Lattes',
-    description:
-      'Golden-baked crunchy biscuit cup infused with real Madagascar vanilla pods and a silky white-cocoa moisture barrier. Crafted for lattes, cappuccinos & gelato.',
-    basePrice: 329,
-    rating: 4.8,
-    reviews: 168,
-    badge: 'Café Favourite',
-    stock: 36,
-    sku: 'C2E-VAN-02',
-    hsn: '19053290',
-    accentColor: '#C89B3C',
-    packOptions: [
-      { size: 'Box of 12', count: 12, multiplier: 1, discountLabel: '' },
-      { size: 'Box of 24', count: 24, multiplier: 1.85, discountLabel: 'Save 8%' },
-      { size: 'Cafe Pack of 50', count: 50, multiplier: 3.6, discountLabel: 'Save 14%' }
-    ]
-  },
-  {
-    id: 'prod-elai',
-    name: 'Royal Elaichi Chai Edible Cups',
-    flavour: 'Elaichi',
-    tagline: 'Cardamom-Infused Crisp Biscuit • Crafted for Chai',
-    description:
-      'Specially engineered for Indian masala chai and filter coffee lovers. Fragrant hand-crushed green cardamom baked into a crisp, leak-proof biscuit cup.',
-    basePrice: 339,
-    rating: 4.9,
-    reviews: 302,
-    badge: 'Desi Signature',
-    stock: 9,
-    sku: 'C2E-ELAI-03',
-    hsn: '19053290',
-    accentColor: '#5B6E43',
-    packOptions: [
-      { size: 'Box of 12', count: 12, multiplier: 1, discountLabel: '' },
-      { size: 'Box of 24', count: 24, multiplier: 1.85, discountLabel: 'Save 8%' },
-      { size: 'Cafe Pack of 50', count: 50, multiplier: 3.6, discountLabel: 'Save 14%' }
-    ]
-  },
-  {
-    id: 'prod-assort',
-    name: 'Signature Assorted Party Box',
-    flavour: 'Assorted',
-    tagline: 'Mix of Chocolate, Vanilla & Elaichi Cups',
-    description:
-      'Experience the complete CUP2EAT artisan collection in one luxury rigid gift box. Ideal for house parties, corporate events, gifting & specialty cafés.',
-    basePrice: 499,
-    rating: 5.0,
-    reviews: 189,
-    badge: 'Gift & Event Pack',
-    stock: 25,
-    sku: 'C2E-ASST-04',
-    hsn: '19053290',
-    accentColor: '#8C522B',
-    packOptions: [
-      { size: 'Box of 12', count: 12, multiplier: 1, discountLabel: '4 Each' },
-      { size: 'Box of 24', count: 24, multiplier: 1.85, discountLabel: 'Save 8%' },
-      { size: 'Cafe Pack of 50', count: 50, multiplier: 3.6, discountLabel: 'Save 14%' }
-    ]
-  }
-];
-
-const INITIAL_SEED_ORDERS = [
-  {
-    id: 'C2E-84920',
-    createdAt: Date.now() - 3600 * 1000 * 5,
-    date: '12 Nov 2026, 09:30 AM',
-    customerUid: 'demo-aarav',
-    customerName: 'Aarav Sharma',
-    customerPhone: '+91 98765 43210',
-    customerEmail: 'aarav.sharma@example.com',
-    address: 'B-402, Palm Grove Residency, Bandra West, Mumbai - 400050',
-    paymentMethod: 'UPI Instant (Razorpay)',
-    razorpayPaymentId: 'pay_P9xK2mN84920',
-    status: 'Dispatched via Courier',
-    items: [
+    const INITIAL_PRODUCTS = [
       {
-        productId: 'prod-choc',
+        id: 'prod-choc',
         name: 'Dark Belgian Chocolate Edible Cups',
-        packSize: 'Box of 24',
-        cupsCount: 24,
-        qty: 1,
-        unitPrice: 646
+        flavour: 'Chocolate',
+        tagline: 'Rich Cocoa Wafer • Holds Hot Espresso 45+ Mins',
+        description: 'Crisp artisan wafer biscuit coated inside with velvety 70% Dark Belgian couverture chocolate. Holds piping hot espresso or cappuccino without softening.',
+        basePrice: 349,
+        rating: 4.9,
+        reviews: 214,
+        badge: 'Bestseller',
+        stock: 48,
+        sku: 'C2E-CHOC-01',
+        accent: '#3B2314',
+        packOptions: [
+          { size: 'Box of 12', count: 12, multiplier: 1, label: '' },
+          { size: 'Box of 24', count: 24, multiplier: 1.85, label: 'Save 8%' },
+          { size: 'Café Pack of 50', count: 50, multiplier: 3.6, label: 'Save 14%' }
+        ]
       },
       {
-        productId: 'prod-elai',
+        id: 'prod-van',
+        name: 'Madagascar Vanilla Edible Cups',
+        flavour: 'Vanilla',
+        tagline: 'Aromatic Vanilla Bean Crunch • Ideal for Lattes',
+        description: 'Golden-baked crunchy biscuit cup infused with real Madagascar vanilla pods and a silky white-cocoa moisture barrier. Crafted for lattes, cappuccinos & gelato.',
+        basePrice: 329,
+        rating: 4.8,
+        reviews: 168,
+        badge: 'Café Favourite',
+        stock: 36,
+        sku: 'C2E-VAN-02',
+        accent: '#C89B3C',
+        packOptions: [
+          { size: 'Box of 12', count: 12, multiplier: 1, label: '' },
+          { size: 'Box of 24', count: 24, multiplier: 1.85, label: 'Save 8%' },
+          { size: 'Café Pack of 50', count: 50, multiplier: 3.6, label: 'Save 14%' }
+        ]
+      },
+      {
+        id: 'prod-elai',
         name: 'Royal Elaichi Chai Edible Cups',
-        packSize: 'Box of 12',
-        cupsCount: 12,
-        qty: 2,
-        unitPrice: 339
-      }
-    ],
-    subtotal: 1324,
-    discount: 132,
-    gst: 60,
-    total: 1252
-  }
-];
-
-const ORDER_STAGES = [
-  'Order Confirmed',
-  'Freshly Baked & Packed',
-  'Dispatched via Courier',
-  'Delivered'
-];
-
-// ============================================================================
-// BESPOKE SVG CUP ARTWORK
-// ============================================================================
-const CupIllustration = ({ flavour, accentColor }) => {
-  const isChoc = flavour === 'Chocolate';
-  const isVanilla = flavour === 'Vanilla';
-  const isElaichi = flavour === 'Elaichi';
-
-  return (
-    <div className="relative w-full h-56 rounded-2xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-[#1E130C] via-[#3B2314] to-[#160D08] group-hover:scale-[1.01] transition-transform duration-500">
-      <div
-        className="absolute w-44 h-44 rounded-full blur-2xl opacity-50 transition-opacity duration-500 group-hover:opacity-75"
-        style={{ backgroundColor: accentColor }}
-      />
-      <div className="absolute w-48 h-48 rounded-full border border-[#C89B3C]/25" />
-      <div className="absolute w-36 h-36 rounded-full border border-[#FAF6F0]/10" />
-
-      <svg
-        viewBox="0 0 220 190"
-        className="w-44 h-40 relative z-10 drop-shadow-[0_18px_22px_rgba(0,0,0,0.6)] transform group-hover:-translate-y-1.5 transition-transform duration-500"
-      >
-        <defs>
-          <linearGradient id={`wafer-${flavour}`} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#E9C476" />
-            <stop offset="55%" stopColor="#C89B3C" />
-            <stop offset="100%" stopColor="#85581C" />
-          </linearGradient>
-          <linearGradient id={`liner-${flavour}`} x1="0" y1="0" x2="0" y2="1">
-            <stop
-              offset="0%"
-              stopColor={
-                isChoc
-                  ? '#3B2314'
-                  : isVanilla
-                  ? '#FFF9EE'
-                  : isElaichi
-                  ? '#6F874E'
-                  : '#5A2D18'
-              }
-            />
-            <stop
-              offset="100%"
-              stopColor={
-                isChoc
-                  ? '#1E130C'
-                  : isVanilla
-                  ? '#EBD8B7'
-                  : isElaichi
-                  ? '#45592D'
-                  : '#2D140A'
-              }
-            />
-          </linearGradient>
-          <pattern
-            id={`grid-${flavour}`}
-            width="10"
-            height="10"
-            patternUnits="userSpaceOnUse"
-            patternTransform="rotate(45)"
-          >
-            <path
-              d="M 10 0 L 0 0 0 10"
-              fill="none"
-              stroke="#4D2B12"
-              strokeWidth="0.9"
-              strokeOpacity="0.34"
-            />
-          </pattern>
-        </defs>
-
-        <path
-          d="M88 38 C84 26, 95 20, 90 10"
-          fill="none"
-          stroke="#FAF6F0"
-          strokeWidth="2"
-          strokeLinecap="round"
-          opacity="0.45"
-        />
-        <path
-          d="M112 34 C108 22, 119 16, 114 6"
-          fill="none"
-          stroke="#C89B3C"
-          strokeWidth="2"
-          strokeLinecap="round"
-          opacity="0.7"
-        />
-        <path
-          d="M134 40 C130 28, 141 22, 136 12"
-          fill="none"
-          stroke="#FAF6F0"
-          strokeWidth="2"
-          strokeLinecap="round"
-          opacity="0.35"
-        />
-
-        <path
-          d="M158 72 C186 72, 186 124, 152 126"
-          fill="none"
-          stroke={`url(#wafer-${flavour})`}
-          strokeWidth="12"
-          strokeLinecap="round"
-        />
-        <path
-          d="M158 72 C186 72, 186 124, 152 126"
-          fill="none"
-          stroke={`url(#grid-${flavour})`}
-          strokeWidth="12"
-          strokeLinecap="round"
-        />
-
-        <path
-          d="M54 58 L166 58 L150 144 C148 155, 136 162, 110 162 C84 162, 72 155, 70 144 Z"
-          fill={`url(#wafer-${flavour})`}
-        />
-        <path
-          d="M54 58 L166 58 L150 144 C148 155, 136 162, 110 162 C84 162, 72 155, 70 144 Z"
-          fill={`url(#grid-${flavour})`}
-        />
-
-        <ellipse
-          cx="110"
-          cy="58"
-          rx="56"
-          ry="13"
-          fill="#F3DCA8"
-          stroke="#9D6B24"
-          strokeWidth="1.5"
-        />
-        <ellipse
-          cx="110"
-          cy="58"
-          rx="50"
-          ry="10"
-          fill={`url(#liner-${flavour})`}
-        />
-        <ellipse cx="110" cy="60" rx="44" ry="7.5" fill="#3B2314" />
-        <ellipse
-          cx="104"
-          cy="59"
-          rx="24"
-          ry="3.5"
-          fill="#C89B3C"
-          opacity="0.45"
-        />
-
-        <circle
-          cx="110"
-          cy="108"
-          r="21"
-          fill="#1E130C"
-          fillOpacity="0.9"
-          stroke="#C89B3C"
-          strokeWidth="1.3"
-        />
-        <text
-          x="110"
-          y="106"
-          textAnchor="middle"
-          fill="#FAF6F0"
-          fontSize="7.5"
-          fontWeight="700"
-          letterSpacing="1"
-        >
-          CUP2EAT
-        </text>
-        <text
-          x="110"
-          y="116"
-          textAnchor="middle"
-          fill="#C89B3C"
-          fontSize="5.8"
-          fontWeight="600"
-          letterSpacing="0.8"
-        >
-          {flavour.toUpperCase()}
-        </text>
-
-        <ellipse
-          cx="110"
-          cy="167"
-          rx="52"
-          ry="6"
-          fill="#000000"
-          opacity="0.45"
-        />
-      </svg>
-
-      <span className="absolute bottom-3 left-3 px-3 py-1 rounded-full text-[11px] font-semibold tracking-wider uppercase bg-[#FAF6F0]/10 backdrop-blur-md text-[#FAF6F0] border border-[#FAF6F0]/15">
-        {flavour} Edition
-      </span>
-    </div>
-  );
-};
-
-export default function App() {
-  // ==========================================================================
-  // FIREBASE AUTH & REAL-TIME SYNC STATE
-  // ==========================================================================
-  const [fbUser, setFbUser] = useState(null);
-  const [isDbConnected, setIsDbConnected] = useState(false);
-
-  // Navigation Mode: 'store' | 'admin'
-  const [viewMode, setViewMode] = useState('store');
-
-  // Products & Catalogue Filtering (Synced with Firestore)
-  const [products, setProducts] = useState(INITIAL_PRODUCTS);
-  const [selectedFlavour, setSelectedFlavour] = useState('All');
-  const [selectedPackIndexes, setSelectedPackIndexes] = useState({
-    'prod-choc': 0,
-    'prod-van': 0,
-    'prod-elai': 0,
-    'prod-assort': 0
-  });
-
-  // Cart State
-  const [cart, setCart] = useState([
-    {
-      cartKey: 'prod-choc-0',
-      productId: 'prod-choc',
-      name: 'Dark Belgian Chocolate Edible Cups',
-      flavour: 'Chocolate',
-      packSize: 'Box of 12',
-      cupsCount: 12,
-      unitPrice: 349,
-      qty: 1
-    }
-  ]);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [promoCode, setPromoCode] = useState('');
-  const [appliedPromo, setAppliedPromo] = useState(null);
-
-  // Customer Profile & Auth Modal State
-  const [customerProfile, setCustomerProfile] = useState(null);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authTab, setAuthTab] = useState('otp'); // 'otp' | 'email'
-  const [emailMode, setEmailMode] = useState('login'); // 'login' | 'register'
-  const [authEmail, setAuthEmail] = useState('');
-  const [authPassword, setAuthPassword] = useState('');
-  const [authIdentifier, setAuthIdentifier] = useState('');
-  const [authName, setAuthName] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpInput, setOtpInput] = useState('');
-  const [generatedOtp, setGeneratedOtp] = useState('4829');
-  const [authLoading, setAuthLoading] = useState(false);
-
-  // Checkout & Razorpay Simulation State
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [checkoutStep, setCheckoutStep] = useState('address'); // 'address' | 'payment' | 'processing'
-  const [shippingInfo, setShippingInfo] = useState({
-    fullName: '',
-    phone: '',
-    email: '',
-    address: '',
-    city: 'New Delhi',
-    pincode: '110001'
-  });
-  const [paymentTab, setPaymentTab] = useState('upi');
-  const [upiId, setUpiId] = useState('customer@okaxis');
-
-  // Orders & GST Invoices (Synced with Firestore)
-  const [orders, setOrders] = useState(INITIAL_SEED_ORDERS);
-  const [isOrdersOpen, setIsOrdersOpen] = useState(false);
-  const [activeInvoiceOrder, setActiveInvoiceOrder] = useState(null);
-
-  // Owner Admin Dashboard State
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
-  const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
-  const [adminPin, setAdminPin] = useState('2026');
-  const [adminTab, setAdminTab] = useState('orders'); // 'orders' | 'inventory'
-  const [adminOrderFilter, setAdminOrderFilter] = useState('All');
-  const [editingPriceId, setEditingPriceId] = useState(null);
-  const [editingPriceVal, setEditingPriceVal] = useState('');
-  const [newProductModal, setNewProductModal] = useState(false);
-  const [newProdForm, setNewProdForm] = useState({
-    name: '',
-    flavour: 'Chocolate',
-    tagline: '',
-    basePrice: 359,
-    stock: 30
-  });
-
-  // WhatsApp Concierge & Toast
-  const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
-  const [waMessage, setWaMessage] = useState(
-    'Hi Varun! I want to enquire about box orders & pricing for CUP2EAT edible cups.'
-  );
-  const [toast, setToast] = useState(null);
-
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => {
-      setToast(null);
-    }, 3600);
-  };
-
-  // ==========================================================================
-  // 1. FIREBASE AUTHENTICATION BOOTSTRAP (Strict Rule 3 Compliance)
-  // ==========================================================================
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else if (!auth.currentUser) {
-          await signInAnonymously(auth);
-        }
-      } catch (err) {
-        console.warn('Firebase Auth fallback initialized:', err?.message);
-      }
-    };
-    initAuth();
-
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setFbUser(user);
-      if (user && !user.isAnonymous && user.email) {
-        setCustomerProfile((prev) => ({
-          uid: user.uid,
-          name: prev?.name || user.email.split('@')[0],
-          email: user.email,
-          phone: prev?.phone || '+91 98181 92575'
-        }));
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  // ==========================================================================
-  // 2. REAL-TIME CLOUD FIRESTORE LISTENERS (Products & Orders via onSnapshot)
-  // ==========================================================================
-  useEffect(() => {
-    if (!fbUser) return;
-
-    const productsColRef = collection(
-      db,
-      'artifacts',
-      appId,
-      'public',
-      'data',
-      'products'
-    );
-    const ordersColRef = collection(
-      db,
-      'artifacts',
-      appId,
-      'public',
-      'data',
-      'orders'
-    );
-
-    // Subscribe to real-time Product Catalogue & Stock
-    const unsubProducts = onSnapshot(
-      productsColRef,
-      async (snapshot) => {
-        setIsDbConnected(true);
-        if (snapshot.empty) {
-          // Auto-seed the 4 signature CUP2EAT products on very first load
-          try {
-            const batch = writeBatch(db);
-            INITIAL_PRODUCTS.forEach((prod) => {
-              const docRef = doc(
-                db,
-                'artifacts',
-                appId,
-                'public',
-                'data',
-                'products',
-                prod.id
-              );
-              batch.set(docRef, prod);
-            });
-            await batch.commit();
-          } catch (seedErr) {
-            console.warn('Product seed skipped:', seedErr?.message);
-          }
-        } else {
-          const liveProducts = snapshot.docs.map((d) => ({
-            id: d.id,
-            ...d.data()
-          }));
-          // Keep signature items ordered naturally, newest custom launches on top
-          liveProducts.sort((a, b) => {
-            const aIdx = INITIAL_PRODUCTS.findIndex((p) => p.id === a.id);
-            const bIdx = INITIAL_PRODUCTS.findIndex((p) => p.id === b.id);
-            if (aIdx === -1 && bIdx === -1) return 0;
-            if (aIdx === -1) return -1;
-            if (bIdx === -1) return 1;
-            return aIdx - bIdx;
-          });
-          setProducts(liveProducts);
-        }
+        flavour: 'Elaichi',
+        tagline: 'Cardamom-Infused Crisp Biscuit • Crafted for Chai',
+        description: 'Specially engineered for Indian masala chai and filter coffee lovers. Fragrant hand-crushed green cardamom baked into a crisp, leak-proof biscuit cup.',
+        basePrice: 339,
+        rating: 4.9,
+        reviews: 302,
+        badge: 'Desi Signature',
+        stock: 19,
+        sku: 'C2E-ELAI-03',
+        accent: '#5B6E43',
+        packOptions: [
+          { size: 'Box of 12', count: 12, multiplier: 1, label: '' },
+          { size: 'Box of 24', count: 24, multiplier: 1.85, label: 'Save 8%' },
+          { size: 'Café Pack of 50', count: 50, multiplier: 3.6, label: 'Save 14%' }
+        ]
       },
-      (error) => {
-        console.warn('Firestore products listener fallback:', error?.message);
-        setIsDbConnected(false);
+      {
+        id: 'prod-assort',
+        name: 'Signature Assorted Party Box',
+        flavour: 'Assorted',
+        tagline: 'Mix of Chocolate, Vanilla & Elaichi Cups',
+        description: 'Experience the complete CUP2EAT artisan collection in one luxury rigid gift box. Ideal for house parties, corporate events, gifting & specialty cafés.',
+        basePrice: 499,
+        rating: 5.0,
+        reviews: 189,
+        badge: 'Gift & Event Pack',
+        stock: 25,
+        sku: 'C2E-ASST-04',
+        accent: '#8C5228',
+        packOptions: [
+          { size: 'Box of 12', count: 12, multiplier: 1, label: '' },
+          { size: 'Box of 24', count: 24, multiplier: 1.85, label: 'Save 8%' },
+          { size: 'Café Pack of 50', count: 50, multiplier: 3.6, label: 'Save 14%' }
+        ]
       }
-    );
+    ];
 
-    // Subscribe to real-time Orders & Live Status Tracking
-    const unsubOrders = onSnapshot(
-      ordersColRef,
-      async (snapshot) => {
-        if (snapshot.empty) {
-          try {
-            const seedOrd = INITIAL_SEED_ORDERS[0];
-            await setDoc(
-              doc(db, 'artifacts', appId, 'public', 'data', 'orders', seedOrd.id),
-              seedOrd
-            );
-          } catch (seedErr) {
-            console.warn('Order seed skipped:', seedErr?.message);
-          }
-        } else {
-          const liveOrders = snapshot.docs.map((d) => ({
-            id: d.id,
-            ...d.data()
-          }));
-          liveOrders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-          setOrders(liveOrders);
-        }
-      },
-      (error) => {
-        console.warn('Firestore orders listener fallback:', error?.message);
+    const INITIAL_ORDERS = [
+      {
+        id: 'C2E-84920',
+        date: '12 Nov 2026, 09:30 AM',
+        customerName: 'Aarav Sharma',
+        customerPhone: '+91 98765 43210',
+        address: 'B-402, Palm Grove Residency, Bandra West, Mumbai - 400050',
+        paymentMethod: 'UPI Instant (Razorpay)',
+        paymentId: 'pay_P9xK2mN84920',
+        status: 'Dispatched via Courier',
+        items: [
+          { name: 'Dark Belgian Chocolate Edible Cups', packSize: 'Box of 24', qty: 1, unitPrice: 646 },
+          { name: 'Royal Elaichi Chai Edible Cups', packSize: 'Box of 12', qty: 2, unitPrice: 339 }
+        ],
+        subtotal: 1324,
+        discount: 132,
+        gst: 60,
+        total: 1252
       }
-    );
+    ];
 
-    return () => {
-      unsubProducts();
-      unsubOrders();
-    };
-  }, [fbUser]);
+    const STAGES = ['Order Confirmed', 'Freshly Baked & Packed', 'Dispatched via Courier', 'Delivered'];
 
-  // ==========================================================================
-  // DERIVED STATE & CART CALCULATIONS
-  // ==========================================================================
-  const filteredProducts = useMemo(() => {
-    if (selectedFlavour === 'All') return products;
-    return products.filter(
-      (p) => p.flavour.toLowerCase() === selectedFlavour.toLowerCase()
-    );
-  }, [products, selectedFlavour]);
-
-  const customerVisibleOrders = useMemo(() => {
-    if (!customerProfile) return orders;
-    const matched = orders.filter(
-      (o) =>
-        o.customerUid === customerProfile.uid ||
-        o.customerEmail?.toLowerCase() === customerProfile.email?.toLowerCase() ||
-        o.customerPhone === customerProfile.phone
-    );
-    return matched.length > 0 ? matched : orders;
-  }, [orders, customerProfile]);
-
-  const cartCount = useMemo(
-    () => cart.reduce((sum, item) => sum + item.qty, 0),
-    [cart]
-  );
-
-  const cartSubtotal = useMemo(
-    () => cart.reduce((sum, item) => sum + item.unitPrice * item.qty, 0),
-    [cart]
-  );
-
-  const discountAmount = useMemo(() => {
-    if (!appliedPromo) return 0;
-    if (appliedPromo === 'CUP10') return Math.round(cartSubtotal * 0.1);
-    if (appliedPromo === 'FIRST15') return Math.round(cartSubtotal * 0.15);
-    return 0;
-  }, [appliedPromo, cartSubtotal]);
-
-  const gstAmount = useMemo(
-    () => Math.round((cartSubtotal - discountAmount) * 0.05),
-    [cartSubtotal, discountAmount]
-  );
-
-  const grandTotal = Math.max(0, cartSubtotal - discountAmount + gstAmount);
-
-  // ==========================================================================
-  // CART & PROMO HANDLERS
-  // ==========================================================================
-  const handleAddToCart = (product, openCartDrawer = true) => {
-    if (product.stock <= 0) {
-      showToast('This batch is currently sold out!', 'info');
-      return;
-    }
-    const packIdx = selectedPackIndexes[product.id] ?? 0;
-    const pack = product.packOptions[packIdx] || product.packOptions[0];
-    const unitPrice = Math.round(product.basePrice * pack.multiplier);
-    const cartKey = `${product.id}-${packIdx}`;
-
-    setCart((prev) => {
-      const existing = prev.find((item) => item.cartKey === cartKey);
-      if (existing) {
-        return prev.map((item) =>
-          item.cartKey === cartKey ? { ...item, qty: item.qty + 1 } : item
-        );
-      }
-      return [
-        ...prev,
-        {
-          cartKey,
-          productId: product.id,
-          name: product.name,
-          flavour: product.flavour,
-          packSize: pack.size,
-          cupsCount: pack.count || 12,
-          unitPrice,
-          qty: 1
-        }
-      ];
-    });
-
-    if (openCartDrawer) setIsCartOpen(true);
-    showToast(`Added ${product.name} (${pack.size}) to bag`);
-  };
-
-  const handleBuyNow = (product) => {
-    handleAddToCart(product, false);
-    if (customerProfile) {
-      setShippingInfo((prev) => ({
-        ...prev,
-        fullName: prev.fullName || customerProfile.name,
-        phone: prev.phone || customerProfile.phone,
-        email: prev.email || customerProfile.email
-      }));
-    }
-    setCheckoutStep('address');
-    setIsCheckoutOpen(true);
-  };
-
-  const updateCartQty = (cartKey, delta) => {
-    setCart((prev) =>
-      prev
-        .map((item) =>
-          item.cartKey === cartKey
-            ? { ...item, qty: Math.max(0, item.qty + delta) }
-            : item
-        )
-        .filter((item) => item.qty > 0)
-    );
-  };
-
-  const handleApplyPromo = (e) => {
-    e.preventDefault();
-    const code = promoCode.trim().toUpperCase();
-    if (code === 'CUP10' || code === 'FIRST15') {
-      setAppliedPromo(code);
-      showToast(`Promo code ${code} applied!`);
-    } else {
-      showToast('Use code CUP10 for 10% instant discount', 'info');
-    }
-  };
-
-  // ==========================================================================
-  // FIREBASE CUSTOMER AUTH HANDLERS (Email/Password + Instant OTP Flow)
-  // ==========================================================================
-  const handleSendOtp = (e) => {
-    e.preventDefault();
-    if (!authIdentifier.trim()) return;
-    const randomCode = String(Math.floor(1000 + Math.random() * 9000));
-    setGeneratedOtp(randomCode);
-    setOtpSent(true);
-    showToast(`Verification OTP ${randomCode} sent to ${authIdentifier}`);
-  };
-
-  const handleVerifyOtp = async (e) => {
-    e.preventDefault();
-    if (otpInput.trim().length < 4) {
-      showToast('Please enter the 4-digit OTP', 'info');
-      return;
-    }
-    setAuthLoading(true);
-    try {
-      if (!auth.currentUser) {
-        await signInAnonymously(auth);
-      }
-      const isEmail = authIdentifier.includes('@');
-      const profile = {
-        uid: auth.currentUser?.uid || `guest-${Date.now()}`,
-        name: authName.trim() || 'CUP2EAT Member',
-        phone: isEmail ? '+91 98181 92575' : authIdentifier.trim(),
-        email: isEmail ? authIdentifier.trim() : 'member@cup2eat.in'
-      };
-      setCustomerProfile(profile);
-      setShippingInfo((prev) => ({
-        ...prev,
-        fullName: profile.name,
-        phone: profile.phone,
-        email: profile.email
-      }));
-      setIsAuthModalOpen(false);
-      setOtpSent(false);
-      setOtpInput('');
-      showToast(`Signed in as ${profile.name}`);
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleEmailAuthSubmit = async (e) => {
-    e.preventDefault();
-    if (!authEmail.trim() || !authPassword.trim()) return;
-    setAuthLoading(true);
-    try {
-      let cred;
-      if (emailMode === 'register') {
-        cred = await createUserWithEmailAndPassword(
-          auth,
-          authEmail.trim(),
-          authPassword.trim()
-        );
-      } else {
-        cred = await signInWithEmailAndPassword(
-          auth,
-          authEmail.trim(),
-          authPassword.trim()
-        );
-      }
-      const profile = {
-        uid: cred.user.uid,
-        name: authName.trim() || authEmail.split('@')[0],
-        email: cred.user.email,
-        phone: '+91 98181 92575'
-      };
-      setCustomerProfile(profile);
-      setShippingInfo((prev) => ({
-        ...prev,
-        fullName: profile.name,
-        email: profile.email,
-        phone: profile.phone
-      }));
-      setIsAuthModalOpen(false);
-      showToast(`Welcome to CUP2EAT, ${profile.name}!`);
-    } catch (err) {
-      // Graceful fallback if Email/Password provider is still being toggled in Firebase Console
-      const fallbackProfile = {
-        uid: auth.currentUser?.uid || `uid-${Date.now()}`,
-        name: authName.trim() || authEmail.split('@')[0],
-        email: authEmail.trim(),
-        phone: '+91 98181 92575'
-      };
-      setCustomerProfile(fallbackProfile);
-      setIsAuthModalOpen(false);
-      showToast(`Authenticated session active for ${fallbackProfile.name}`);
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleCustomerLogout = async () => {
-    setCustomerProfile(null);
-    try {
-      await signOut(auth);
-      await signInAnonymously(auth);
-    } catch (err) {
-      console.warn(err);
-    }
-    showToast('Signed out of customer profile');
-  };
-
-  // ==========================================================================
-  // REAL-TIME ORDER PLACEMENT & ATOMIC FIRESTORE STOCK DECREMENT
-  // ==========================================================================
-  const handleCompletePayment = async () => {
-    setCheckoutStep('processing');
-    const newOrderId = `C2E-${Math.floor(10000 + Math.random() * 90000)}`;
-    const now = new Date();
-    const formattedDate = now.toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-
-    const methodLabel =
-      paymentTab === 'upi'
-        ? `UPI Instant (${upiId || 'Razorpay'})`
-        : paymentTab === 'card'
-        ? 'Credit / Debit Card (Razorpay)'
-        : 'NetBanking (Razorpay)';
-
-    const createdOrder = {
-      id: newOrderId,
-      createdAt: Date.now(),
-      date: formattedDate,
-      customerUid: customerProfile?.uid || fbUser?.uid || 'guest-buyer',
-      customerName:
-        shippingInfo.fullName || customerProfile?.name || 'Valued Guest',
-      customerPhone:
-        shippingInfo.phone || customerProfile?.phone || '+91 98181 92575',
-      customerEmail:
-        shippingInfo.email || customerProfile?.email || 'customer@cup2eat.in',
-      address: `${shippingInfo.address || '42, Connaught Place'}, ${
-        shippingInfo.city
-      } - ${shippingInfo.pincode}`,
-      paymentMethod: methodLabel,
-      razorpayPaymentId: `pay_${Math.random().toString(36).substring(2, 12).toUpperCase()}`,
-      status: 'Order Confirmed',
-      items: cart.map((c) => ({
-        productId: c.productId,
-        name: c.name,
-        packSize: c.packSize,
-        cupsCount: c.cupsCount || 12,
-        qty: c.qty,
-        unitPrice: c.unitPrice
-      })),
-      subtotal: cartSubtotal,
-      discount: discountAmount,
-      gst: gstAmount,
-      total: grandTotal
-    };
-
-    try {
-      const batch = writeBatch(db);
-      // 1. Write Order Document to Firestore
-      const orderRef = doc(
-        db,
-        'artifacts',
-        appId,
-        'public',
-        'data',
-        'orders',
-        newOrderId
+    function CupIllustration({ flavour, accent }) {
+      return (
+        <div className="relative w-full h-48 rounded-2xl flex items-center justify-center overflow-hidden" style={{ background: `linear-gradient(135deg, ${accent}18, ${accent}38)` }}>
+          <svg viewBox="0 0 160 160" className="w-36 h-36 drop-shadow-xl">
+            <defs>
+              <linearGradient id={`cup-${flavour}`} x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#E6B97A" />
+                <stop offset="100%" stopColor="#B87D3B" />
+              </linearGradient>
+            </defs>
+            {/* Steam */}
+            <path d="M62 34 C58 24, 68 18, 64 10" stroke={accent} strokeWidth="2.5" strokeLinecap="round" fill="none" opacity="0.6" />
+            <path d="M80 30 C76 20, 86 14, 82 6" stroke={accent} strokeWidth="2.5" strokeLinecap="round" fill="none" opacity="0.8" />
+            <path d="M98 34 C94 24, 104 18, 100 10" stroke={accent} strokeWidth="2.5" strokeLinecap="round" fill="none" opacity="0.6" />
+            {/* Handle */}
+            <path d="M114 64 C134 64, 134 104, 110 104" stroke="#C58B47" strokeWidth="9" strokeLinecap="round" fill="none" />
+            {/* Cup Body */}
+            <path d="M44 52 L116 52 L106 122 C105 130, 96 135, 80 135 C64 135, 55 130, 54 122 Z" fill={`url(#cup-${flavour})`} />
+            {/* Wafer Waffle Grid */}
+            <path d="M52 72 L108 72 M54 92 L106 92 M56 112 L104 112 M68 54 L72 132 M80 54 L80 134 M92 54 L88 132" stroke="#8F5B25" strokeWidth="1.2" opacity="0.35" />
+            {/* Rim & Drink */}
+            <ellipse cx="80" cy="52" rx="36" ry="9" fill="#F3D3A2" />
+            <ellipse cx="80" cy="52" rx="31" ry="6.5" fill={accent} />
+            <ellipse cx="74" cy="51" rx="12" ry="2.2" fill="#FFFFFF" opacity="0.25" />
+          </svg>
+          <span className="absolute bottom-3 right-3 text-[11px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full bg-white/90 text-[#23150E] shadow-sm">
+            100% Edible Wafer
+          </span>
+        </div>
       );
-      batch.set(orderRef, createdOrder);
+    }
 
-      // 2. Atomically Decrement Product Stock in Firestore
-      const qtyByProduct = {};
-      cart.forEach((item) => {
-        qtyByProduct[item.productId] = (qtyByProduct[item.productId] || 0) + item.qty;
+    function App() {
+      const [products, setProducts] = useState(INITIAL_PRODUCTS);
+      const [selectedPacks, setSelectedPacks] = useState({
+        'prod-choc': 0, 'prod-van': 0, 'prod-elai': 0, 'prod-assort': 0
       });
+      const [cart, setCart] = useState([]);
+      const [cartOpen, setCartOpen] = useState(false);
+      const [user, setUser] = useState(null);
+      const [authOpen, setAuthOpen] = useState(false);
+      const [phoneInput, setPhoneInput] = useState('');
+      const [nameInput, setNameInput] = useState('');
+      const [otpStep, setOtpStep] = useState(false);
+      const [otpInput, setOtpInput] = useState('');
 
-      Object.entries(qtyByProduct).forEach(([prodId, orderedQty]) => {
-        const prodRef = doc(
-          db,
-          'artifacts',
-          appId,
-          'public',
-          'data',
-          'products',
-          prodId
-        );
-        batch.update(prodRef, {
-          stock: increment(-orderedQty)
+      const [promoCode, setPromoCode] = useState('');
+      const [promoApplied, setPromoApplied] = useState(false);
+      const [address, setAddress] = useState('Flat 302, Greenview Apartments, Indiranagar, Bengaluru - 560038');
+      const [payMethod, setPayMethod] = useState('UPI Instant (Razorpay)');
+      const [checkoutSuccess, setCheckoutSuccess] = useState(null);
+
+      const [orders, setOrders] = useState(INITIAL_ORDERS);
+      const [trackOpen, setTrackOpen] = useState(false);
+      const [invoiceOrder, setInvoiceOrder] = useState(null);
+      const [adminMode, setAdminMode] = useState(false);
+      const [newFlavour, setNewFlavour] = useState({ name: '', flavour: 'Mocha', price: 359, stock: 30 });
+      const [toast, setToast] = useState('');
+
+      const showToast = (msg) => {
+        setToast(msg);
+        setTimeout(() => setToast(''), 3000);
+      };
+
+      const addToCart = (product) => {
+        const packIdx = selectedPacks[product.id] || 0;
+        const pack = product.packOptions[packIdx];
+        const unitPrice = Math.round(product.basePrice * pack.multiplier);
+        const key = `${product.id}-${pack.size}`;
+
+        setCart((prev) => {
+          const exists = prev.find((i) => i.key === key);
+          if (exists) {
+            return prev.map((i) => i.key === key ? { ...i, qty: i.qty + 1 } : i);
+          }
+          return [...prev, { key, productId: product.id, name: product.name, packSize: pack.size, unitPrice, qty: 1 }];
         });
-      });
+        showToast(`Added ${product.flavour} (${pack.size}) to bag`);
+      };
 
-      await batch.commit();
-    } catch (err) {
-      console.warn('Firestore batch fallback applied locally:', err?.message);
-      setOrders((prev) => [createdOrder, ...prev]);
-      setProducts((prev) =>
-        prev.map((prod) => {
-          const orderedQty = cart
-            .filter((c) => c.productId === prod.id)
-            .reduce((s, c) => s + c.qty, 0);
-          return orderedQty > 0
-            ? { ...prod, stock: Math.max(0, prod.stock - orderedQty) }
-            : prod;
-        })
-      );
-    }
+      const updateCartQty = (key, delta) => {
+        setCart((prev) => prev.map((i) => i.key === key ? { ...i, qty: Math.max(0, i.qty + delta) } : i).filter((i) => i.qty > 0));
+      };
 
-    setTimeout(() => {
-      setCart([]);
-      setAppliedPromo(null);
-      setIsCheckoutOpen(false);
-      setCheckoutStep('address');
-      setActiveInvoiceOrder(createdOrder);
-      showToast(`Order #${newOrderId} synced live & GST Invoice generated!`);
-    }, 900);
-  };
+      const subtotal = useMemo(() => cart.reduce((sum, i) => sum + i.unitPrice * i.qty, 0), [cart]);
+      const discount = promoApplied ? Math.round(subtotal * 0.1) : 0;
+      const gst = Math.round((subtotal - discount) * 0.05);
+      const grandTotal = subtotal - discount + gst;
+      const totalItems = cart.reduce((sum, i) => sum + i.qty, 0);
 
-  // ==========================================================================
-  // OWNER ADMIN REAL-TIME MUTATIONS (Firestore Write-Through)
-  // ==========================================================================
-  const handleAdminAccess = () => {
-    if (isAdminAuthenticated) {
-      setViewMode(viewMode === 'admin' ? 'store' : 'admin');
-    } else {
-      setIsAdminLoginOpen(true);
-    }
-  };
+      const handleSendOtp = (e) => {
+        e.preventDefault();
+        if (!phoneInput.trim()) return;
+        setOtpStep(true);
+        showToast('OTP sent! Use 1234 for instant demo login');
+      };
 
-  const handleAdminLoginSubmit = (e) => {
-    e.preventDefault();
-    if (adminPin.trim() !== '2026') {
-      showToast('Invalid Owner PIN. Hint: 2026', 'info');
-      return;
-    }
-    setIsAdminAuthenticated(true);
-    setIsAdminLoginOpen(false);
-    setViewMode('admin');
-    showToast('Authenticated into Varun’s Live Owner Dashboard');
-  };
+      const handleVerifyOtp = (e) => {
+        e.preventDefault();
+        setUser({
+          name: nameInput.trim() || 'Varun Khera',
+          phone: phoneInput.startsWith('+91') ? phoneInput : `+91 ${phoneInput}`
+        });
+        setAuthOpen(false);
+        setOtpStep(false);
+        setOtpInput('');
+        showToast('Welcome to CUP2EAT!');
+      };
 
-  const handleStatusChange = async (orderId, newStatus) => {
-    try {
-      const orderRef = doc(
-        db,
-        'artifacts',
-        appId,
-        'public',
-        'data',
-        'orders',
-        orderId
-      );
-      await updateDoc(orderRef, { status: newStatus });
-      showToast(`Order #${orderId} live status updated to "${newStatus}"`);
-    } catch (err) {
-      setOrders((prev) =>
-        prev.map((ord) => (ord.id === orderId ? { ...ord, status: newStatus } : ord))
-      );
-      showToast(`Order #${orderId} updated to "${newStatus}"`);
-    }
-  };
+      const handlePlaceOrder = () => {
+        if (!user) {
+          setCartOpen(false);
+          setAuthOpen(true);
+          showToast('Please verify Phone OTP to complete order');
+          return;
+        }
+        const newOrder = {
+          id: `C2E-${Math.floor(10000 + Math.random() * 90000)}`,
+          date: new Date().toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+          customerName: user.name,
+          customerPhone: user.phone,
+          address,
+          paymentMethod: payMethod,
+          paymentId: `pay_${Math.random().toString(36).substring(2, 11).toUpperCase()}`,
+          status: 'Order Confirmed',
+          items: cart.map((c) => ({ name: c.name, packSize: c.packSize, qty: c.qty, unitPrice: c.unitPrice })),
+          subtotal,
+          discount,
+          gst,
+          total: grandTotal
+        };
+        setOrders([newOrder, ...orders]);
+        setProducts((prev) =>
+          prev.map((p) => {
+            const orderedQty = cart.filter((c) => c.productId === p.id).reduce((s, c) => s + c.qty, 0);
+            return orderedQty ? { ...p, stock: Math.max(0, p.stock - orderedQty) } : p;
+          })
+        );
+        setCart([]);
+        setPromoApplied(false);
+        setCartOpen(false);
+        setCheckoutSuccess(newOrder);
+      };
 
-  const handleAdjustStock = async (productId, delta) => {
-    const target = products.find((p) => p.id === productId);
-    if (!target) return;
-    const nextStock = Math.max(0, target.stock + delta);
-    try {
-      const prodRef = doc(
-        db,
-        'artifacts',
-        appId,
-        'public',
-        'data',
-        'products',
-        productId
-      );
-      await updateDoc(prodRef, { stock: nextStock });
-    } catch (err) {
-      setProducts((prev) =>
-        prev.map((p) => (p.id === productId ? { ...p, stock: nextStock } : p))
-      );
-    }
-  };
+      const handleAddFlavour = (e) => {
+        e.preventDefault();
+        if (!newFlavour.name.trim()) return;
+        const created = {
+          id: `prod-${Date.now()}`,
+          name: newFlavour.name,
+          flavour: newFlavour.flavour,
+          tagline: `Artisan ${newFlavour.flavour} Wafer • Zero Waste`,
+          description: `Freshly baked edible biscuit cup crafted in ${newFlavour.flavour} edition for cafés and home connoisseurs.`,
+          basePrice: Number(newFlavour.price) || 349,
+          rating: 5.0,
+          reviews: 1,
+          badge: 'New Launch',
+          stock: Number(newFlavour.stock) || 25,
+          sku: `C2E-NEW-${Math.floor(10 + Math.random() * 89)}`,
+          accent: '#6F4E37',
+          packOptions: [
+            { size: 'Box of 12', count: 12, multiplier: 1, label: '' },
+            { size: 'Box of 24', count: 24, multiplier: 1.85, label: 'Save 8%' },
+            { size: 'Café Pack of 50', count: 50, multiplier: 3.6, label: 'Save 14%' }
+          ]
+        };
+        setProducts([created, ...products]);
+        setNewFlavour({ name: '', flavour: 'Mocha', price: 359, stock: 30 });
+        showToast('New flavour published live!');
+      };
 
-  const handleSavePrice = async (productId) => {
-    const parsedPrice = Math.max(99, Number(editingPriceVal) || 349);
-    setEditingPriceId(null);
-    try {
-      const prodRef = doc(
-        db,
-        'artifacts',
-        appId,
-        'public',
-        'data',
-        'products',
-        productId
-      );
-      await updateDoc(prodRef, { basePrice: parsedPrice });
-      showToast(`Price updated live to ₹${parsedPrice}`);
-    } catch (err) {
-      setProducts((prev) =>
-        prev.map((p) => (p.id === productId ? { ...p, basePrice: parsedPrice } : p))
-      );
-    }
-  };
+      const totalRevenue = orders.reduce((s, o) => s + o.total, 0);
 
-  const handleCreateNewProduct = async (e) => {
-    e.preventDefault();
-    if (!newProdForm.name.trim()) return;
-    const newId = `prod-${Date.now()}`;
-    const created = {
-      id: newId,
-      name: newProdForm.name.trim(),
-      flavour: newProdForm.flavour,
-      tagline: newProdForm.tagline.trim() || 'Artisan Edible Wafer Cup • Zero Waste',
-      description:
-        'Freshly baked crispy edible biscuit cup crafted for hot coffee, masala chai, and gourmet desserts.',
-      basePrice: Number(newProdForm.basePrice) || 349,
-      rating: 5.0,
-      reviews: 1,
-      badge: 'New Launch',
-      stock: Number(newProdForm.stock) || 25,
-      sku: `C2E-NEW-${Math.floor(10 + Math.random() * 89)}`,
-      hsn: '19053290',
-      accentColor: '#C89B3C',
-      packOptions: [
-        { size: 'Box of 12', count: 12, multiplier: 1, discountLabel: '' },
-        { size: 'Box of 24', count: 24, multiplier: 1.85, discountLabel: 'Save 8%' },
-        { size: 'Cafe Pack of 50', count: 50, multiplier: 3.6, discountLabel: 'Save 14%' }
-      ]
-    };
-
-    try {
-      await setDoc(
-        doc(db, 'artifacts', appId, 'public', 'data', 'products', newId),
-        created
-      );
-    } catch (err) {
-      setProducts((prev) => [created, ...prev]);
-    }
-
-    setSelectedPackIndexes((prev) => ({ ...prev, [newId]: 0 }));
-    setNewProductModal(false);
-    setNewProdForm({
-      name: '',
-      flavour: 'Chocolate',
-      tagline: '',
-      basePrice: 359,
-      stock: 30
-    });
-    showToast(`"${created.name}" pushed live to Firestore storefront!`);
-  };
-
-  // Admin Live Analytics Summary
-  const adminStats = useMemo(() => {
-    const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
-    const activeOrders = orders.filter((o) => o.status !== 'Delivered').length;
-    const lowStockCount = products.filter((p) => p.stock <= 12).length;
-    const totalBoxesSold = orders.reduce(
-      (sum, o) =>
-        sum + (o.items?.reduce((itemSum, it) => itemSum + (it.qty || 1), 0) || 0),
-      0
-    );
-    return {
-      totalRevenue,
-      activeOrders,
-      lowStockCount,
-      totalBoxesSold
-    };
-  }, [orders, products]);
-
-  const filteredAdminOrders = useMemo(() => {
-    if (adminOrderFilter === 'All') return orders;
-    return orders.filter((o) => o.status === adminOrderFilter);
-  }, [orders, adminOrderFilter]);
-
-  return (
-    <div className="min-h-screen bg-[#FAF6F0] text-[#1E130C] font-sans selection:bg-[#C89B3C] selection:text-[#1E130C]">
-      {/* Floating Toast Notification */}
-      {toast && (
-        <div className="fixed top-20 right-4 z-[90] flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#1E130C] text-[#FAF6F0] shadow-2xl border border-[#C89B3C]/50">
-          <CheckCircle2 className="w-5 h-5 text-[#C89B3C] shrink-0" />
-          <span className="text-sm font-medium">{toast.message}</span>
-        </div>
-      )}
-
-      {/* Top Announcement & Live Cloud Sync Bar */}
-      <div className="bg-[#1E130C] text-[#FAF6F0] text-xs py-2 px-4 border-b border-[#C89B3C]/25">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
-            <span
-              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                isDbConnected
-                  ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
-                  : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
-              }`}
-            >
-              {isDbConnected ? (
-                <>
-                  <Wifi className="w-3 h-3" />
-                  <span>Live Cloud Sync</span>
-                </>
-              ) : (
-                <>
-                  <WifiOff className="w-3 h-3" />
-                  <span>Instant Preview Mode</span>
-                </>
-              )}
-            </span>
-            <p className="hidden sm:flex items-center gap-1.5 text-[#F3ECE1]/90">
-              <Sparkles className="w-3.5 h-3.5 text-[#C89B3C]" />
-              <span>
-                Free Express Pan-India Delivery above ₹699 • Code{' '}
-                <strong className="text-[#C89B3C] tracking-wider">CUP10</strong> for 10%
-                OFF
-              </span>
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 ml-auto">
-            <button
-              onClick={handleAdminAccess}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${
-                viewMode === 'admin'
-                  ? 'bg-[#C89B3C] text-[#1E130C]'
-                  : 'bg-[#FAF6F0]/10 hover:bg-[#FAF6F0]/20 text-[#C89B3C] border border-[#C89B3C]/40'
-              }`}
-            >
-              <LayoutDashboard className="w-3.5 h-3.5" />
-              <span>
-                {viewMode === 'admin'
-                  ? 'Back to Live Store'
-                  : 'Owner Admin Panel (PIN: 2026)'}
-              </span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Glassmorphic Sticky Navbar */}
-      <header className="sticky top-0 z-40 bg-[#FAF6F0]/90 backdrop-blur-xl border-b border-[#1E130C]/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
-          {/* Brand Identity */}
-          <button
-            onClick={() => setViewMode('store')}
-            className="flex items-center gap-3 text-left cursor-pointer group"
-          >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#1E130C] to-[#3B2314] flex items-center justify-center shadow-md border border-[#C89B3C]/50 group-hover:scale-105 transition-transform">
-              <Coffee className="w-5 h-5 text-[#C89B3C]" />
+      return (
+        <div className="min-h-screen flex flex-col">
+          {/* Toast Notification */}
+          {toast && (
+            <div className="fixed top-20 right-5 z-50 bg-[#23150E] text-[#FAF6F0] px-4 py-3 rounded-xl shadow-2xl border border-[#C89B3C]/40 text-sm font-medium">
+              ✨ {toast}
             </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xl font-extrabold tracking-tight text-[#1E130C]">
-                  CUP2EAT
-                </span>
-                <span className="text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded bg-[#C89B3C]/20 text-[#7A5418]">
-                  India
-                </span>
-              </div>
-              <p className="text-[11px] font-semibold tracking-widest uppercase text-[#6E4735]">
-                Eat Your Drink!
-              </p>
-            </div>
-          </button>
-
-          {/* Center Navigation */}
-          {viewMode === 'store' && (
-            <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-[#3B2314]">
-              <a href="#collection" className="hover:text-[#C89B3C] transition-colors">
-                Edible Cups
-              </a>
-              <a href="#story" className="hover:text-[#C89B3C] transition-colors">
-                Why Edible?
-              </a>
-              <a
-                href="#certifications"
-                className="hover:text-[#C89B3C] transition-colors"
-              >
-                FSSAI & Quality
-              </a>
-              <button
-                onClick={() => setIsOrdersOpen(true)}
-                className="hover:text-[#C89B3C] transition-colors flex items-center gap-1.5 cursor-pointer"
-              >
-                <Truck className="w-4 h-4 text-[#C89B3C]" />
-                <span>Live Order Tracking</span>
-              </button>
-            </nav>
           )}
 
-          {/* Right Controls */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <button
-              onClick={() => setIsOrdersOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-bold text-[#1E130C] bg-[#F3ECE1] hover:bg-[#E7DCCB] transition-colors cursor-pointer"
-            >
-              <Package className="w-4 h-4 text-[#8C522B]" />
-              <span className="hidden sm:inline">My Orders</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[11px] bg-[#1E130C] text-[#FAF6F0]">
-                {customerVisibleOrders.length}
-              </span>
-            </button>
+          {/* Top Announcement Bar */}
+          <div className="bg-[#23150E] text-[#FAF6F0] text-xs py-2 px-4 text-center tracking-wide">
+            🌱 100% Edible • Zero Plastic Waste • Use code <span className="text-[#E5B85C] font-bold">CUP10</span> for 10% OFF your first box
+          </div>
 
-            {customerProfile ? (
-              <div className="flex items-center gap-1.5">
+          {/* Navbar */}
+          <header className="sticky top-0 z-30 bg-[#FAF6F0]/95 backdrop-blur-md border-b border-[#23150E]/10">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => setAdminMode(false)}>
+                <div className="w-9 h-9 rounded-xl bg-[#23150E] text-[#E5B85C] flex items-center justify-center font-serif-luxury font-bold text-lg shadow">
+                  C2E
+                </div>
+                <div>
+                  <span className="font-serif-luxury font-bold text-xl tracking-tight text-[#23150E]">CUP2EAT</span>
+                  <span className="hidden sm:inline-block ml-2 text-[11px] uppercase tracking-widest text-[#8C5228] font-semibold">Eat Your Drink!</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 sm:gap-3">
                 <button
-                  onClick={() => setIsOrdersOpen(true)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs sm:text-sm font-bold bg-[#1E130C] text-[#FAF6F0] hover:bg-[#3B2314] transition-colors cursor-pointer"
+                  onClick={() => setAdminMode(!adminMode)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition border ${
+                    adminMode
+                      ? 'bg-[#C89B3C] text-[#23150E] border-[#C89B3C]'
+                      : 'bg-white text-[#23150E] border-[#23150E]/20 hover:border-[#23150E]'
+                  }`}
                 >
-                  <User className="w-4 h-4 text-[#C89B3C]" />
-                  <span className="max-w-[90px] truncate">{customerProfile.name}</span>
+                  {adminMode ? '← Storefront View' : '⚙️ Admin Panel'}
                 </button>
+
                 <button
-                  onClick={handleCustomerLogout}
-                  title="Sign Out"
-                  className="p-2 rounded-xl border border-[#1E130C]/15 hover:bg-[#F3ECE1] text-[#3B2314] cursor-pointer"
+                  onClick={() => setTrackOpen(true)}
+                  className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white border border-[#23150E]/15 hover:border-[#23150E]"
                 >
-                  <LogOut className="w-4 h-4" />
+                  🚚 Track Order ({orders.length})
+                </button>
+
+                {user ? (
+                  <button
+                    onClick={() => setUser(null)}
+                    className="px-3 py-1.5 rounded-full text-xs font-semibold bg-[#23150E]/10 text-[#23150E]"
+                    title="Click to logout"
+                  >
+                    👤 {user.name.split(' ')[0]}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setAuthOpen(true)}
+                    className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white border border-[#23150E]/20 hover:bg-[#23150E] hover:text-white transition"
+                  >
+                    OTP Login
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setCartOpen(true)}
+                  className="relative px-4 py-2 rounded-full bg-[#23150E] text-[#FAF6F0] text-xs font-semibold flex items-center gap-2 hover:bg-[#3B2314] transition shadow"
+                >
+                  <span>🛍️ Bag</span>
+                  <span className="bg-[#C89B3C] text-[#23150E] font-bold px-1.5 py-0.5 rounded-full text-[11px]">
+                    {totalItems}
+                  </span>
                 </button>
               </div>
-            ) : (
-              <button
-                onClick={() => setIsAuthModalOpen(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold border border-[#1E130C]/20 hover:border-[#1E130C] text-[#1E130C] transition-all cursor-pointer"
-              >
-                <User className="w-4 h-4 text-[#8C522B]" />
-                <span>Sign In</span>
-              </button>
-            )}
+            </div>
+          </header>
 
-            <button
-              onClick={() => setIsCartOpen(true)}
-              className="relative flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#C89B3C] hover:bg-[#B88B2E] text-[#1E130C] font-extrabold text-sm shadow-md transition-all cursor-pointer"
-            >
-              <ShoppingBag className="w-4 h-4" />
-              <span className="hidden sm:inline">Bag</span>
-              {cartCount > 0 && (
-                <span className="px-1.5 py-0.5 text-xs font-extrabold rounded-full bg-[#1E130C] text-[#FAF6F0]">
-                  {cartCount}
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* ===================================================================== */}
-      {/* VIEW 1: CUSTOMER STOREFRONT                                           */}
-      {/* ===================================================================== */}
-      {viewMode === 'store' ? (
-        <main>
-          {/* HERO SECTION */}
-          <section className="relative overflow-hidden bg-gradient-to-b from-[#1E130C] via-[#2D1A0E] to-[#1E130C] text-[#FAF6F0] py-16 sm:py-24 px-4 sm:px-6 lg:px-8">
-            <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-[#C89B3C]/20 blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-32 -left-24 w-96 h-96 rounded-full bg-[#3B2314]/40 blur-3xl pointer-events-none" />
-
-            <div className="max-w-7xl mx-auto grid lg:grid-cols-12 gap-12 items-center relative z-10">
-              <div className="lg:col-span-7 space-y-6">
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FAF6F0]/10 border border-[#C89B3C]/40 text-[#E9C476] text-xs font-bold tracking-wider uppercase">
-                  <Leaf className="w-3.5 h-3.5" />
-                  <span>100% Zero-Waste • FSSAI Certified Edible Cups</span>
+          {/* OWNER ADMIN DASHBOARD */}
+          {adminMode ? (
+            <main className="max-w-7xl mx-auto w-full px-4 sm:px-6 py-8 space-y-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#23150E]/10 pb-5">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-widest text-[#C89B3C]">Owner Control Center</span>
+                  <h1 className="font-serif-luxury text-3xl font-bold text-[#23150E]">CUP2EAT Admin Dashboard</h1>
                 </div>
-
-                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1]">
-                  Sip Your Coffee.{' '}
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#E9C476] via-[#C89B3C] to-[#F5D692]">
-                    Eat Your Cup.
-                  </span>{' '}
-                  Zero Waste.
-                </h1>
-
-                <p className="text-base sm:text-lg text-[#F3ECE1]/85 max-w-2xl leading-relaxed">
-                  Artisan roasted wafer cups lined with 70% Dark Belgian Chocolate,
-                  Madagascar Vanilla, or Royal Green Cardamom. Stays crisp for 45+ minutes
-                  with hot espresso or masala chai—then crunch every delicious bite.
-                </p>
-
-                <div className="flex flex-wrap items-center gap-4 pt-2">
-                  <a
-                    href="#collection"
-                    className="inline-flex items-center gap-2 px-7 py-4 rounded-2xl bg-gradient-to-r from-[#C89B3C] to-[#DFB252] text-[#1E130C] font-extrabold text-sm sm:text-base shadow-xl hover:brightness-105 transition-all"
-                  >
-                    <span>Explore Edible Cup Boxes</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </a>
-                  <button
-                    onClick={() => setIsOrdersOpen(true)}
-                    className="inline-flex items-center gap-2 px-6 py-4 rounded-2xl bg-[#FAF6F0]/10 hover:bg-[#FAF6F0]/15 text-[#FAF6F0] border border-[#FAF6F0]/20 font-semibold text-sm sm:text-base transition-all cursor-pointer"
-                  >
-                    <FileText className="w-4 h-4 text-[#C89B3C]" />
-                    <span>Live Tracking & GST Invoice</span>
-                  </button>
-                </div>
-
-                <div className="pt-4 flex flex-wrap items-center gap-6 text-xs sm:text-sm text-[#F3ECE1]/80">
-                  <div className="flex items-center gap-1.5">
-                    <div className="flex text-[#C89B3C]">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="w-4 h-4 fill-current" />
-                      ))}
-                    </div>
-                    <span className="font-bold text-[#FAF6F0]">4.9/5</span>
-                    <span>(870+ Verified Café & Home Orders)</span>
+                <div className="flex gap-3">
+                  <div className="bg-white px-4 py-3 rounded-2xl border border-[#23150E]/10">
+                    <p className="text-xs text-[#6B5344]">Total Revenue</p>
+                    <p className="text-xl font-bold text-[#23150E]">₹{totalRevenue.toLocaleString('en-IN')}</p>
+                  </div>
+                  <div className="bg-white px-4 py-3 rounded-2xl border border-[#23150E]/10">
+                    <p className="text-xs text-[#6B5344]">Active Orders</p>
+                    <p className="text-xl font-bold text-[#23150E]">{orders.length}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Hero Featured Box */}
-              <div className="lg:col-span-5">
-                <div className="relative rounded-3xl bg-gradient-to-b from-[#3B2314] to-[#1E130C] p-6 sm:p-8 border border-[#C89B3C]/35 shadow-2xl">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-[#C89B3C] text-[#1E130C]">
-                      Signature Party Box
-                    </span>
-                    <span className="text-xs text-[#E9C476] font-bold">
-                      Box of 12 • ₹{products[3]?.basePrice || 499}
-                    </span>
-                  </div>
-
-                  <CupIllustration flavour="Assorted" accentColor="#C89B3C" />
-
-                  <div className="mt-5 grid grid-cols-3 gap-2 text-center">
-                    <div className="p-2.5 rounded-xl bg-[#FAF6F0]/5 border border-[#FAF6F0]/10">
-                      <p className="text-xs font-bold text-[#E9C476]">4x Belgian</p>
-                      <p className="text-[11px] text-[#F3ECE1]/70">Dark Choc</p>
-                    </div>
-                    <div className="p-2.5 rounded-xl bg-[#FAF6F0]/5 border border-[#FAF6F0]/10">
-                      <p className="text-xs font-bold text-[#E9C476]">4x Bourbon</p>
-                      <p className="text-[11px] text-[#F3ECE1]/70">Vanilla</p>
-                    </div>
-                    <div className="p-2.5 rounded-xl bg-[#FAF6F0]/5 border border-[#FAF6F0]/10">
-                      <p className="text-xs font-bold text-[#E9C476]">4x Royal</p>
-                      <p className="text-[11px] text-[#F3ECE1]/70">Elaichi Chai</p>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => handleBuyNow(products[3] || products[0])}
-                    className="mt-5 w-full py-3.5 rounded-xl bg-[#FAF6F0] hover:bg-[#F3ECE1] text-[#1E130C] font-extrabold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                  >
-                    <span>Instant Checkout — ₹{products[3]?.basePrice || 499}</span>
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* TRUST BADGES */}
-          <section
-            id="certifications"
-            className="bg-[#F3ECE1] border-y border-[#1E130C]/10 py-6 px-4 sm:px-6 lg:px-8"
-          >
-            <div className="max-w-7xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-              {[
-                {
-                  icon: Leaf,
-                  title: '100% Vegetarian',
-                  sub: 'Eggless & Plant-Forward'
-                },
-                {
-                  icon: Award,
-                  title: 'FSSAI Certified',
-                  sub: 'Lab-Tested Food Grade'
-                },
-                {
-                  icon: Clock,
-                  title: 'Crispy 45+ Mins',
-                  sub: 'Leak-Proof Hot & Cold'
-                },
-                {
-                  icon: ShieldCheck,
-                  title: '100% Zero-Waste',
-                  sub: 'No Plastic, No Paper'
-                }
-              ].map((badge) => {
-                const Icon = badge.icon;
-                return (
-                  <div
-                    key={badge.title}
-                    className="flex items-center gap-3.5 p-3 rounded-2xl bg-[#FAF6F0] border border-[#1E130C]/5"
-                  >
-                    <div className="w-11 h-11 rounded-xl bg-[#C89B3C]/20 text-[#7A5418] flex items-center justify-center shrink-0">
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-extrabold text-[#1E130C]">
-                        {badge.title}
-                      </p>
-                      <p className="text-xs text-[#6E4735]">{badge.sub}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* REAL-TIME PRODUCT CATALOGUE */}
-          <section
-            id="collection"
-            className="max-w-7xl mx-auto py-16 sm:py-20 px-4 sm:px-6 lg:px-8"
-          >
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-widest text-[#8C522B]">
-                  Live Cloud Inventory • Small-Batch Baked
-                </span>
-                <h2 className="text-3xl sm:text-4xl font-extrabold text-[#1E130C] mt-1">
-                  Curated Edible Cup Collection
-                </h2>
-                <p className="text-sm sm:text-base text-[#6E4735] mt-2 max-w-xl">
-                  Select your signature flavour and box pack size. Stock counts update in
-                  real time across all devices upon purchase.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                {['All', 'Chocolate', 'Vanilla', 'Elaichi', 'Assorted'].map((flav) => (
-                  <button
-                    key={flav}
-                    onClick={() => setSelectedFlavour(flav)}
-                    className={`px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                      selectedFlavour === flav
-                        ? 'bg-[#1E130C] text-[#FAF6F0] shadow-md'
-                        : 'bg-[#F3ECE1] text-[#3B2314] hover:bg-[#E7DCCB]'
-                    }`}
-                  >
-                    {flav}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-8">
-              {filteredProducts.map((product) => {
-                const activePackIdx = selectedPackIndexes[product.id] ?? 0;
-                const activePack =
-                  product.packOptions?.[activePackIdx] || product.packOptions?.[0];
-                const computedPrice = Math.round(
-                  product.basePrice * (activePack?.multiplier || 1)
-                );
-
-                return (
-                  <div
-                    key={product.id}
-                    className="group rounded-3xl bg-white border border-[#1E130C]/10 p-5 sm:p-6 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="relative">
-                        <CupIllustration
-                          flavour={product.flavour}
-                          accentColor={product.accentColor}
-                        />
-                        {product.badge && (
-                          <span className="absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-extrabold bg-[#C89B3C] text-[#1E130C] shadow">
-                            {product.badge}
-                          </span>
-                        )}
-                        <span
-                          className={`absolute top-3 right-3 px-2.5 py-1 rounded-full text-[11px] font-bold backdrop-blur-md ${
-                            product.stock <= 10
-                              ? 'bg-amber-400 text-[#1E130C]'
-                              : 'bg-[#1E130C]/80 text-[#FAF6F0]'
-                          }`}
-                        >
-                          {product.stock > 0
-                            ? `${product.stock} Boxes Live in Stock`
-                            : 'Sold Out'}
-                        </span>
-                      </div>
-
-                      <div className="mt-5 flex items-start justify-between gap-4">
-                        <div>
-                          <p className="text-xs font-bold text-[#8C522B]">
-                            {product.tagline}
-                          </p>
-                          <h3 className="text-xl font-extrabold text-[#1E130C] mt-0.5">
-                            {product.name}
-                          </h3>
-                        </div>
-                        <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#FAF6F0] border border-[#1E130C]/10 shrink-0">
-                          <Star className="w-3.5 h-3.5 text-[#C89B3C] fill-current" />
-                          <span className="text-xs font-extrabold">{product.rating}</span>
-                          <span className="text-[11px] text-[#6E4735]">
-                            ({product.reviews})
-                          </span>
-                        </div>
-                      </div>
-
-                      <p className="text-sm text-[#4A2E1D] mt-2.5 leading-relaxed">
-                        {product.description}
-                      </p>
-
-                      {/* Pack Size Selector */}
-                      <div className="mt-5">
-                        <label className="block text-xs font-bold uppercase tracking-wider text-[#6E4735] mb-2">
-                          Select Pack Size
-                        </label>
-                        <div className="grid grid-cols-3 gap-2">
-                          {product.packOptions?.map((opt, idx) => {
-                            const selected = activePackIdx === idx;
-                            return (
-                              <button
-                                key={opt.size}
-                                onClick={() =>
-                                  setSelectedPackIndexes((prev) => ({
-                                    ...prev,
-                                    [product.id]: idx
-                                  }))
-                                }
-                                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                                  selected
-                                    ? 'border-[#1E130C] bg-[#1E130C] text-[#FAF6F0] shadow-sm'
-                                    : 'border-[#1E130C]/15 bg-[#FAF6F0] text-[#1E130C] hover:border-[#C89B3C]'
-                                }`}
-                              >
-                                <div className="text-xs font-extrabold">{opt.size}</div>
-                                <div
-                                  className={`text-[11px] mt-0.5 ${
-                                    selected ? 'text-[#E9C476]' : 'text-[#8C522B]'
-                                  }`}
-                                >
-                                  ₹{Math.round(product.basePrice * opt.multiplier)}{' '}
-                                  {opt.discountLabel && `• ${opt.discountLabel}`}
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-6 pt-5 border-t border-[#1E130C]/10 flex flex-wrap items-center justify-between gap-4">
-                      <div>
-                        <span className="text-xs text-[#6E4735] block">
-                          Inclusive of Food-Grade Box
-                        </span>
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-2xl font-extrabold text-[#1E130C]">
-                            ₹{computedPrice}
-                          </span>
-                          <span className="text-xs line-through text-[#8C522B]/70">
-                            ₹{Math.round(computedPrice * 1.18)}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2.5">
-                        <button
-                          onClick={() => handleAddToCart(product, true)}
-                          disabled={product.stock === 0}
-                          className="px-4 py-3 rounded-xl border-2 border-[#1E130C] text-[#1E130C] hover:bg-[#1E130C] hover:text-[#FAF6F0] font-bold text-xs sm:text-sm transition-all cursor-pointer disabled:opacity-40"
-                        >
-                          Add to Bag
-                        </button>
-                        <button
-                          onClick={() => handleBuyNow(product)}
-                          disabled={product.stock === 0}
-                          className="px-5 py-3 rounded-xl bg-[#C89B3C] hover:bg-[#B88B2E] text-[#1E130C] font-extrabold text-xs sm:text-sm shadow-md transition-all cursor-pointer disabled:opacity-40"
-                        >
-                          Buy Now
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* ZERO-WASTE RITUAL SECTION */}
-          <section
-            id="story"
-            className="bg-[#1E130C] text-[#FAF6F0] py-16 sm:py-20 px-4 sm:px-6 lg:px-8"
-          >
-            <div className="max-w-7xl mx-auto">
-              <div className="text-center max-w-2xl mx-auto mb-14">
-                <span className="text-xs font-bold uppercase tracking-widest text-[#C89B3C]">
-                  The Zero-Waste Ritual
-                </span>
-                <h2 className="text-3xl sm:text-4xl font-extrabold mt-2">
-                  Three Simple Steps to Pure Indulgence
-                </h2>
-              </div>
-
-              <div className="grid md:grid-cols-3 gap-8">
-                {[
-                  {
-                    step: '01',
-                    title: 'Pour Hot or Cold',
-                    desc: 'Serve piping hot espresso, masala chai, or cold gelato. Our food-grade Belgian chocolate & vanilla barrier stays crisp for 45+ minutes.'
-                  },
-                  {
-                    step: '02',
-                    title: 'Sip & Savour Aroma',
-                    desc: 'As you drink, the inner cocoa or green cardamom glaze gently infuses your beverage with rich café-style aroma.'
-                  },
-                  {
-                    step: '03',
-                    title: 'Crunch Every Bite',
-                    desc: 'Finish your drink and eat the crunchy roasted wafer cup! Zero plastic lids, zero soggy paper waste.'
-                  }
-                ].map((item) => (
-                  <div
-                    key={item.step}
-                    className="p-7 rounded-3xl bg-[#FAF6F0]/5 border border-[#C89B3C]/25"
-                  >
-                    <span className="text-4xl font-black text-[#C89B3C]/35">
-                      {item.step}
-                    </span>
-                    <h3 className="text-xl font-extrabold text-[#FAF6F0] mt-3">
-                      {item.title}
-                    </h3>
-                    <p className="text-sm text-[#F3ECE1]/80 mt-2.5 leading-relaxed">
-                      {item.desc}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        </main>
-      ) : (
-        /* ===================================================================== */
-        /* VIEW 2: REAL-TIME OWNER ADMIN DASHBOARD                               */
-        /* ===================================================================== */
-        <main className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#C89B3C]/20 text-[#7A5418] text-xs font-extrabold uppercase tracking-wider mb-1">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Real-Time Firestore Owner Control Center</span>
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-[#1E130C]">
-                Welcome back, Varun Khera
-              </h1>
-              <p className="text-sm text-[#6E4735]">
-                Every status update, price edit, and stock adjustment syncs live to
-                customers in real time.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setNewProductModal(true)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#1E130C] text-[#FAF6F0] text-sm font-bold hover:bg-[#3B2314] transition-colors cursor-pointer"
-              >
-                <PlusCircle className="w-4 h-4 text-[#C89B3C]" />
-                <span>Add New Flavour</span>
-              </button>
-              <button
-                onClick={() => setViewMode('store')}
-                className="px-4 py-2.5 rounded-xl border border-[#1E130C]/20 text-sm font-bold hover:bg-[#F3ECE1] transition-colors cursor-pointer"
-              >
-                View Live Store
-              </button>
-            </div>
-          </div>
-
-          {/* Live KPI Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
-            <div className="p-5 rounded-2xl bg-white border border-[#1E130C]/10 shadow-sm">
-              <div className="flex items-center justify-between text-[#8C522B]">
-                <span className="text-xs font-bold uppercase">Total Revenue</span>
-                <TrendingUp className="w-4 h-4" />
-              </div>
-              <p className="text-2xl sm:text-3xl font-extrabold text-[#1E130C] mt-2">
-                ₹{adminStats.totalRevenue.toLocaleString('en-IN')}
-              </p>
-              <p className="text-xs text-emerald-700 font-semibold mt-1">
-                Synced from {orders.length} live orders
-              </p>
-            </div>
-
-            <div className="p-5 rounded-2xl bg-white border border-[#1E130C]/10 shadow-sm">
-              <div className="flex items-center justify-between text-[#8C522B]">
-                <span className="text-xs font-bold uppercase">Active Orders</span>
-                <Truck className="w-4 h-4" />
-              </div>
-              <p className="text-2xl sm:text-3xl font-extrabold text-[#1E130C] mt-2">
-                {adminStats.activeOrders}
-              </p>
-              <p className="text-xs text-[#6E4735] mt-1">Awaiting final delivery</p>
-            </div>
-
-            <div className="p-5 rounded-2xl bg-white border border-[#1E130C]/10 shadow-sm">
-              <div className="flex items-center justify-between text-amber-700">
-                <span className="text-xs font-bold uppercase">Low Stock Alerts</span>
-                <AlertTriangle className="w-4 h-4" />
-              </div>
-              <p className="text-2xl sm:text-3xl font-extrabold text-[#1E130C] mt-2">
-                {adminStats.lowStockCount} SKUs
-              </p>
-              <p className="text-xs text-amber-700 font-semibold mt-1">
-                12 or fewer boxes left
-              </p>
-            </div>
-
-            <div className="p-5 rounded-2xl bg-white border border-[#1E130C]/10 shadow-sm">
-              <div className="flex items-center justify-between text-[#8C522B]">
-                <span className="text-xs font-bold uppercase">Total Boxes Sold</span>
-                <Boxes className="w-4 h-4" />
-              </div>
-              <p className="text-2xl sm:text-3xl font-extrabold text-[#1E130C] mt-2">
-                {adminStats.totalBoxesSold} Boxes
-              </p>
-              <p className="text-xs text-[#6E4735] mt-1">Across all flavours</p>
-            </div>
-          </div>
-
-          {/* Admin Sub-Tabs */}
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-6 border-b border-[#1E130C]/10 pb-3">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setAdminTab('orders')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${
-                  adminTab === 'orders'
-                    ? 'bg-[#1E130C] text-[#FAF6F0]'
-                    : 'bg-[#F3ECE1] text-[#1E130C]'
-                }`}
-              >
-                <Package className="w-4 h-4 text-[#C89B3C]" />
-                <span>Orders & Tracking ({orders.length})</span>
-              </button>
-              <button
-                onClick={() => setAdminTab('inventory')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${
-                  adminTab === 'inventory'
-                    ? 'bg-[#1E130C] text-[#FAF6F0]'
-                    : 'bg-[#F3ECE1] text-[#1E130C]'
-                }`}
-              >
-                <Boxes className="w-4 h-4 text-[#C89B3C]" />
-                <span>Inventory & Pricing ({products.length})</span>
-              </button>
-            </div>
-
-            {adminTab === 'orders' && (
-              <div className="flex flex-wrap items-center gap-1.5">
-                {['All', ...ORDER_STAGES].map((st) => (
-                  <button
-                    key={st}
-                    onClick={() => setAdminOrderFilter(st)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer ${
-                      adminOrderFilter === st
-                        ? 'bg-[#C89B3C] text-[#1E130C]'
-                        : 'bg-white border border-[#1E130C]/10 text-[#3B2314]'
-                    }`}
-                  >
-                    {st}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* TAB 1: ORDERS TABLE */}
-          {adminTab === 'orders' ? (
-            <div className="bg-white rounded-3xl border border-[#1E130C]/10 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-[#F3ECE1]/80 text-[#1E130C] text-xs uppercase tracking-wider border-b border-[#1E130C]/10">
-                      <th className="py-4 px-5 font-extrabold">Order ID & Date</th>
-                      <th className="py-4 px-5 font-extrabold">Customer</th>
-                      <th className="py-4 px-5 font-extrabold">Items Ordered</th>
-                      <th className="py-4 px-5 font-extrabold">Paid Amount</th>
-                      <th className="py-4 px-5 font-extrabold">
-                        Live Tracking Stage
-                      </th>
-                      <th className="py-4 px-5 font-extrabold text-right">Invoice</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#1E130C]/10 text-sm">
-                    {filteredAdminOrders.map((ord) => (
-                      <tr key={ord.id} className="hover:bg-[#FAF6F0]/70">
-                        <td className="py-4 px-5">
-                          <span className="font-extrabold text-[#1E130C]">
-                            #{ord.id}
-                          </span>
-                          <span className="block text-xs text-[#6E4735] mt-0.5">
-                            {ord.date}
-                          </span>
-                        </td>
-                        <td className="py-4 px-5">
-                          <p className="font-bold text-[#1E130C]">{ord.customerName}</p>
-                          <p className="text-xs text-[#6E4735]">{ord.customerPhone}</p>
-                        </td>
-                        <td className="py-4 px-5">
-                          {ord.items?.map((it, idx) => (
-                            <div key={idx} className="text-xs text-[#3B2314]">
-                              <strong>{it.qty}x</strong> {it.name} ({it.packSize})
-                            </div>
-                          ))}
-                        </td>
-                        <td className="py-4 px-5 font-extrabold text-[#1E130C]">
-                          ₹{ord.total}
-                          <span className="block text-[11px] font-semibold text-emerald-700">
-                            {ord.razorpayPaymentId || 'Razorpay Verified'}
-                          </span>
-                        </td>
-                        <td className="py-4 px-5">
-                          <select
-                            value={ord.status}
-                            onChange={(e) => handleStatusChange(ord.id, e.target.value)}
-                            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#FAF6F0] border border-[#1E130C]/20 text-[#1E130C] focus:outline-none focus:border-[#C89B3C] cursor-pointer"
-                          >
-                            {ORDER_STAGES.map((stage) => (
-                              <option key={stage} value={stage}>
-                                {stage}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="py-4 px-5 text-right">
-                          <button
-                            onClick={() => setActiveInvoiceOrder(ord)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1E130C] text-[#FAF6F0] text-xs font-bold hover:bg-[#3B2314] cursor-pointer"
-                          >
-                            <FileText className="w-3.5 h-3.5 text-[#C89B3C]" />
-                            <span>GST Invoice</span>
-                          </button>
-                        </td>
+              {/* Manage Orders & Live Tracking */}
+              <section className="bg-white rounded-3xl p-6 border border-[#23150E]/10 shadow-sm">
+                <h2 className="font-serif-luxury text-xl font-bold mb-4">Live Orders & Status Control</h2>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-[#23150E]/10 text-xs uppercase text-[#6B5344]">
+                        <th className="py-3 pr-4">Order ID</th>
+                        <th className="py-3 pr-4">Customer</th>
+                        <th className="py-3 pr-4">Items</th>
+                        <th className="py-3 pr-4">Amount</th>
+                        <th className="py-3 pr-4">Tracking Stage</th>
+                        <th className="py-3">Invoice</th>
                       </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#23150E]/10">
+                      {orders.map((ord) => (
+                        <tr key={ord.id}>
+                          <td className="py-3.5 pr-4 font-bold">{ord.id}</td>
+                          <td className="py-3.5 pr-4">
+                            <div className="font-semibold">{ord.customerName}</div>
+                            <div className="text-xs text-[#6B5344]">{ord.customerPhone}</div>
+                          </td>
+                          <td className="py-3.5 pr-4 text-xs">
+                            {ord.items.map((it, idx) => (
+                              <div key={idx}>{it.qty}× {it.name} ({it.packSize})</div>
+                            ))}
+                          </td>
+                          <td className="py-3.5 pr-4 font-bold">₹{ord.total}</td>
+                          <td className="py-3.5 pr-4">
+                            <select
+                              value={ord.status}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setOrders((prev) => prev.map((o) => o.id === ord.id ? { ...o, status: val } : o));
+                                showToast(`Order ${ord.id} updated to ${val}`);
+                              }}
+                              className="bg-[#FAF6F0] border border-[#23150E]/20 rounded-lg px-2.5 py-1.5 text-xs font-semibold"
+                            >
+                              {STAGES.map((st) => <option key={st} value={st}>{st}</option>)}
+                            </select>
+                          </td>
+                          <td className="py-3.5">
+                            <button
+                              onClick={() => setInvoiceOrder(ord)}
+                              className="text-xs font-semibold underline text-[#8C5228] hover:text-[#23150E]"
+                            >
+                              GST Invoice
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              {/* Inventory & Add Flavour */}
+              <div className="grid md:grid-cols-2 gap-6">
+                <section className="bg-white rounded-3xl p-6 border border-[#23150E]/10 shadow-sm">
+                  <h2 className="font-serif-luxury text-xl font-bold mb-4">Inventory & Stock Levels</h2>
+                  <div className="space-y-3">
+                    {products.map((p) => (
+                      <div key={p.id} className="flex items-center justify-between p-3 rounded-2xl bg-[#FAF6F0]">
+                        <div>
+                          <div className="font-semibold text-sm">{p.name}</div>
+                          <div className="text-xs text-[#6B5344]">SKU: {p.sku} • Base ₹{p.basePrice}</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setProducts((prev) => prev.map((x) => x.id === p.id ? { ...x, stock: Math.max(0, x.stock - 5) } : x))}
+                            className="w-7 h-7 rounded-lg bg-white border border-[#23150E]/20 font-bold"
+                          >-</button>
+                          <span className="text-xs font-bold w-16 text-center">{p.stock} boxes</span>
+                          <button
+                            onClick={() => setProducts((prev) => prev.map((x) => x.id === p.id ? { ...x, stock: x.stock + 5 } : x))}
+                            className="w-7 h-7 rounded-lg bg-white border border-[#23150E]/20 font-bold"
+                          >+</button>
+                        </div>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ) : (
-            /* TAB 2: LIVE INVENTORY & PRICE MANAGER */
-            <div className="grid sm:grid-cols-2 gap-6">
-              {products.map((prod) => (
-                <div
-                  key={prod.id}
-                  className="p-5 rounded-2xl bg-white border border-[#1E130C]/10 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold px-2 py-0.5 rounded bg-[#F3ECE1] text-[#8C522B]">
-                        {prod.sku}
-                      </span>
-                      {prod.stock <= 12 && (
-                        <span className="text-xs font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">
-                          Low Stock Alert
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="text-base font-extrabold text-[#1E130C] mt-1.5">
-                      {prod.name}
-                    </h3>
-
-                    {/* Inline Price Editor */}
-                    <div className="flex items-center gap-2 mt-1.5">
-                      {editingPriceId === prod.id ? (
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-bold">₹</span>
-                          <input
-                            type="number"
-                            value={editingPriceVal}
-                            onChange={(e) => setEditingPriceVal(e.target.value)}
-                            className="w-20 px-2 py-1 rounded border border-[#1E130C]/30 text-xs font-bold"
-                          />
-                          <button
-                            onClick={() => handleSavePrice(prod.id)}
-                            className="p-1 rounded bg-emerald-600 text-white cursor-pointer"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2 text-xs text-[#6E4735]">
-                          <span>
-                            Box of 12 Price:{' '}
-                            <strong className="text-[#1E130C]">
-                              ₹{prod.basePrice}
-                            </strong>
-                          </span>
-                          <button
-                            onClick={() => {
-                              setEditingPriceId(prod.id);
-                              setEditingPriceVal(String(prod.basePrice));
-                            }}
-                            className="inline-flex items-center gap-1 text-[#8C522B] hover:underline font-bold cursor-pointer"
-                          >
-                            <Edit3 className="w-3 h-3" />
-                            <span>Edit Price</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
                   </div>
+                </section>
 
-                  {/* Live +/- Stock Controls */}
-                  <div className="flex items-center gap-2.5 bg-[#FAF6F0] p-2 rounded-xl border border-[#1E130C]/10 self-start sm:self-center">
-                    <button
-                      onClick={() => handleAdjustStock(prod.id, -5)}
-                      className="w-8 h-8 rounded-lg bg-white border border-[#1E130C]/15 flex items-center justify-center font-bold hover:bg-[#F3ECE1] cursor-pointer"
-                    >
-                      -5
-                    </button>
-                    <div className="text-center min-w-[54px]">
-                      <span className="text-base font-extrabold text-[#1E130C] block">
-                        {prod.stock}
-                      </span>
-                      <span className="text-[10px] uppercase text-[#6E4735]">Boxes</span>
-                    </div>
-                    <button
-                      onClick={() => handleAdjustStock(prod.id, 5)}
-                      className="w-8 h-8 rounded-lg bg-[#1E130C] text-[#FAF6F0] flex items-center justify-center font-bold hover:bg-[#3B2314] cursor-pointer"
-                    >
-                      +5
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </main>
-      )}
-
-      {/* ===================================================================== */}
-      {/* FOOTER                                                                */}
-      {/* ===================================================================== */}
-      <footer className="bg-[#1E130C] text-[#F3ECE1]/80 border-t border-[#C89B3C]/25 py-12 px-4 sm:px-6 lg:px-8 mt-16">
-        <div className="max-w-7xl mx-auto grid md:grid-cols-3 gap-8 items-start">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <Coffee className="w-6 h-6 text-[#C89B3C]" />
-              <span className="text-xl font-extrabold text-[#FAF6F0] tracking-tight">
-                CUP2EAT
-              </span>
-            </div>
-            <p className="text-xs text-[#F3ECE1]/75 mt-3 leading-relaxed max-w-sm">
-              Eat Your Drink! Crispy, delicious, 100% zero-waste edible biscuit cups
-              crafted for modern cafés, events, and conscious coffee lovers across India.
-            </p>
-          </div>
-
-          <div className="space-y-2 text-xs">
-            <p className="font-bold uppercase tracking-wider text-[#C89B3C]">
-              Direct Brand Concierge
-            </p>
-            <p className="flex items-center gap-2">
-              <Phone className="w-3.5 h-3.5 text-[#C89B3C]" />
-              <span>+91 98181 92575 (Varun Khera)</span>
-            </p>
-            <p className="flex items-center gap-2">
-              <Mail className="w-3.5 h-3.5 text-[#C89B3C]" />
-              <span>Varunkhera6@gmail.com</span>
-            </p>
-          </div>
-
-          <div className="space-y-2 text-xs">
-            <p className="font-bold uppercase tracking-wider text-[#C89B3C]">
-              Customer Self-Service
-            </p>
-            <div className="flex flex-wrap gap-2 pt-1">
-              <button
-                onClick={() => setIsOrdersOpen(true)}
-                className="px-3 py-1.5 rounded-lg bg-[#FAF6F0]/10 hover:bg-[#FAF6F0]/20 text-[#FAF6F0] cursor-pointer"
-              >
-                Live Order Tracking
-              </button>
-              <button
-                onClick={() => setActiveInvoiceOrder(orders[0])}
-                className="px-3 py-1.5 rounded-lg bg-[#FAF6F0]/10 hover:bg-[#FAF6F0]/20 text-[#FAF6F0] cursor-pointer"
-              >
-                Sample GST Invoice
-              </button>
-            </div>
-          </div>
-        </div>
-      </footer>
-
-      {/* ===================================================================== */}
-      {/* SLIDE-OVER SHOPPING CART DRAWER                                       */}
-      {/* ===================================================================== */}
-      {isCartOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-md bg-[#FAF6F0] h-full shadow-2xl flex flex-col justify-between">
-            <div className="p-5 bg-[#1E130C] text-[#FAF6F0] flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <ShoppingBag className="w-5 h-5 text-[#C89B3C]" />
-                <h3 className="font-extrabold text-lg">Your Tasting Bag ({cartCount})</h3>
-              </div>
-              <button
-                onClick={() => setIsCartOpen(false)}
-                className="p-1.5 rounded-lg hover:bg-white/10 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              {cart.length === 0 ? (
-                <div className="text-center py-16">
-                  <Coffee className="w-12 h-12 text-[#C89B3C] mx-auto mb-3 opacity-70" />
-                  <p className="font-bold text-[#1E130C]">Your cup bag is empty</p>
-                  <p className="text-xs text-[#6E4735] mt-1">
-                    Add Belgian Chocolate, Vanilla, or Elaichi boxes to begin.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {cart.map((item) => (
-                    <div
-                      key={item.cartKey}
-                      className="p-4 rounded-2xl bg-white border border-[#1E130C]/10 flex items-center justify-between gap-3"
-                    >
-                      <div>
-                        <h4 className="font-extrabold text-sm text-[#1E130C]">
-                          {item.name}
-                        </h4>
-                        <p className="text-xs text-[#8C522B] font-semibold mt-0.5">
-                          {item.packSize} • ₹{item.unitPrice} each
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2 bg-[#FAF6F0] px-2.5 py-1.5 rounded-xl border border-[#1E130C]/10">
-                        <button
-                          onClick={() => updateCartQty(item.cartKey, -1)}
-                          className="p-1 hover:text-[#C89B3C] cursor-pointer"
-                        >
-                          <Minus className="w-3.5 h-3.5" />
-                        </button>
-                        <span className="text-xs font-extrabold w-5 text-center">
-                          {item.qty}
-                        </span>
-                        <button
-                          onClick={() => updateCartQty(item.cartKey, 1)}
-                          className="p-1 hover:text-[#C89B3C] cursor-pointer"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-
-                  <form onSubmit={handleApplyPromo} className="flex gap-2 pt-2">
+                <section className="bg-white rounded-3xl p-6 border border-[#23150E]/10 shadow-sm">
+                  <h2 className="font-serif-luxury text-xl font-bold mb-4">Launch New Flavour Box</h2>
+                  <form onSubmit={handleAddFlavour} className="space-y-3">
                     <input
                       type="text"
-                      value={promoCode}
-                      onChange={(e) => setPromoCode(e.target.value)}
-                      placeholder="Promo code (Try CUP10)"
-                      className="flex-1 px-3.5 py-2.5 rounded-xl bg-white border border-[#1E130C]/15 text-xs font-semibold focus:outline-none focus:border-[#C89B3C]"
+                      required
+                      placeholder="Product Title (e.g., Hazelnut Mocha Edible Cups)"
+                      value={newFlavour.name}
+                      onChange={(e) => setNewFlavour({ ...newFlavour, name: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#23150E]/20 text-sm"
                     />
-                    <button
-                      type="submit"
-                      className="px-4 py-2.5 rounded-xl bg-[#1E130C] text-[#FAF6F0] text-xs font-bold hover:bg-[#3B2314] cursor-pointer"
-                    >
-                      Apply
+                    <div className="grid grid-cols-3 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Flavour"
+                        value={newFlavour.flavour}
+                        onChange={(e) => setNewFlavour({ ...newFlavour, flavour: e.target.value })}
+                        className="px-3 py-2.5 rounded-xl border border-[#23150E]/20 text-sm"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Base Price ₹"
+                        value={newFlavour.price}
+                        onChange={(e) => setNewFlavour({ ...newFlavour, price: e.target.value })}
+                        className="px-3 py-2.5 rounded-xl border border-[#23150E]/20 text-sm"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Stock"
+                        value={newFlavour.stock}
+                        onChange={(e) => setNewFlavour({ ...newFlavour, stock: e.target.value })}
+                        className="px-3 py-2.5 rounded-xl border border-[#23150E]/20 text-sm"
+                      />
+                    </div>
+                    <button type="submit" className="w-full py-3 rounded-xl bg-[#23150E] text-[#FAF6F0] font-semibold text-sm hover:bg-[#3B2314]">
+                      + Publish to Storefront
                     </button>
                   </form>
-                </>
-              )}
-            </div>
-
-            {cart.length > 0 && (
-              <div className="p-5 bg-white border-t border-[#1E130C]/10 space-y-3">
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex justify-between text-[#6E4735]">
-                    <span>Subtotal</span>
-                    <span className="font-bold text-[#1E130C]">₹{cartSubtotal}</span>
-                  </div>
-                  {discountAmount > 0 && (
-                    <div className="flex justify-between text-emerald-700 font-semibold">
-                      <span>Discount ({appliedPromo})</span>
-                      <span>-₹{discountAmount}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between text-[#6E4735]">
-                    <span>GST (5% Edible Tableware)</span>
-                    <span>₹{gstAmount}</span>
-                  </div>
-                  <div className="flex justify-between text-base font-extrabold text-[#1E130C] pt-2 border-t border-[#1E130C]/10">
-                    <span>Grand Total</span>
-                    <span>₹{grandTotal}</span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => {
-                    setIsCartOpen(false);
-                    if (customerProfile) {
-                      setShippingInfo((prev) => ({
-                        ...prev,
-                        fullName: prev.fullName || customerProfile.name,
-                        phone: prev.phone || customerProfile.phone,
-                        email: prev.email || customerProfile.email
-                      }));
-                    }
-                    setCheckoutStep('address');
-                    setIsCheckoutOpen(true);
-                  }}
-                  className="w-full py-3.5 rounded-xl bg-[#C89B3C] hover:bg-[#B88B2E] text-[#1E130C] font-extrabold text-sm shadow-lg flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <span>Proceed to Secure Checkout</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+                </section>
               </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ===================================================================== */}
-      {/* RAZORPAY / UPI CHECKOUT MODAL                                         */}
-      {/* ===================================================================== */}
-      {isCheckoutOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-3xl bg-[#FAF6F0] border border-[#1E130C]/15 shadow-2xl overflow-hidden">
-            <div className="p-5 bg-[#1E130C] text-[#FAF6F0] flex items-center justify-between">
-              <div>
-                <span className="text-[10px] uppercase tracking-widest text-[#C89B3C] font-bold">
-                  CUP2EAT Express Checkout
-                </span>
-                <h3 className="text-lg font-extrabold">
-                  {checkoutStep === 'address'
-                    ? 'Shipping & GST Invoice Details'
-                    : checkoutStep === 'payment'
-                    ? 'Razorpay Payment Gateway'
-                    : 'Syncing Order & Updating Stock...'}
-                </h3>
-              </div>
-              <button
-                onClick={() => setIsCheckoutOpen(false)}
-                className="p-1.5 rounded-lg hover:bg-white/10 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {checkoutStep === 'address' && (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  setCheckoutStep('payment');
-                }}
-                className="p-6 space-y-4"
-              >
-                <div className="grid sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold mb-1">Full Name *</label>
-                    <input
-                      required
-                      type="text"
-                      value={shippingInfo.fullName}
-                      onChange={(e) =>
-                        setShippingInfo({ ...shippingInfo, fullName: e.target.value })
-                      }
-                      placeholder="e.g. Rohan Verma"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#1E130C]/15 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold mb-1">
-                      Mobile Number *
-                    </label>
-                    <input
-                      required
-                      type="tel"
-                      value={shippingInfo.phone}
-                      onChange={(e) =>
-                        setShippingInfo({ ...shippingInfo, phone: e.target.value })
-                      }
-                      placeholder="+91 98181 92575"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#1E130C]/15 text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold mb-1">
-                    Email ID (For Auto-Invoice) *
-                  </label>
-                  <input
-                    required
-                    type="email"
-                    value={shippingInfo.email}
-                    onChange={(e) =>
-                      setShippingInfo({ ...shippingInfo, email: e.target.value })
-                    }
-                    placeholder="you@example.com"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#1E130C]/15 text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold mb-1">
-                    Complete Delivery Address *
-                  </label>
-                  <input
-                    required
-                    type="text"
-                    value={shippingInfo.address}
-                    onChange={(e) =>
-                      setShippingInfo({ ...shippingInfo, address: e.target.value })
-                    }
-                    placeholder="House/Flat No, Street, Landmark"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#1E130C]/15 text-sm"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold mb-1">City *</label>
-                    <input
-                      required
-                      type="text"
-                      value={shippingInfo.city}
-                      onChange={(e) =>
-                        setShippingInfo({ ...shippingInfo, city: e.target.value })
-                      }
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#1E130C]/15 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold mb-1">PIN Code *</label>
-                    <input
-                      required
-                      type="text"
-                      value={shippingInfo.pincode}
-                      onChange={(e) =>
-                        setShippingInfo({ ...shippingInfo, pincode: e.target.value })
-                      }
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#1E130C]/15 text-sm"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-3.5 rounded-xl bg-[#1E130C] hover:bg-[#3B2314] text-[#FAF6F0] font-extrabold text-sm flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <span>Continue to Payment — ₹{grandTotal}</span>
-                  <ArrowRight className="w-4 h-4 text-[#C89B3C]" />
-                </button>
-              </form>
-            )}
-
-            {checkoutStep === 'payment' && (
-              <div className="p-6 space-y-5">
-                <div className="p-3.5 rounded-2xl bg-[#1D2B4F] text-white flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <ShieldCheck className="w-5 h-5 text-sky-400" />
-                    <div>
-                      <p className="text-xs font-bold">Razorpay Trusted Business</p>
-                      <p className="text-[11px] text-sky-200">
-                        Live Key Hook Ready • Instant Test Mode Active
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-lg font-extrabold">₹{grandTotal}</span>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: 'upi', label: 'UPI / QR', icon: QrCode },
-                    { id: 'card', label: 'Card', icon: CreditCard },
-                    { id: 'netbanking', label: 'NetBanking', icon: Building2 }
-                  ].map((tab) => {
-                    const Icon = tab.icon;
-                    return (
+            </main>
+          ) : (
+            /* CUSTOMER D2C STOREFRONT */
+            <main className="flex-1">
+              {/* Hero Banner */}
+              <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-10 pb-14">
+                <div className="bg-[#23150E] text-[#FAF6F0] rounded-[2rem] p-8 sm:p-14 relative overflow-hidden shadow-2xl">
+                  <div className="max-w-2xl relative z-10 space-y-5">
+                    <span className="inline-block px-3.5 py-1 rounded-full bg-[#C89B3C]/20 text-[#E5B85C] text-xs font-bold tracking-widest uppercase border border-[#C89B3C]/30">
+                      India’s First Luxury Edible Cup Brand
+                    </span>
+                    <h1 className="font-serif-luxury text-4xl sm:text-6xl font-bold leading-tight">
+                      Sip Your Espresso. <span className="text-[#E5B85C] italic">Crunch The Cup.</span>
+                    </h1>
+                    <p className="text-[#FAF6F0]/80 text-sm sm:text-base leading-relaxed">
+                      Handcrafted crispy wafer biscuit cups lined with couverture cocoa. Leak-proof for 45+ minutes with piping hot coffee, masala chai, or gelato—leaving zero waste behind.
+                    </p>
+                    <div className="flex flex-wrap gap-3 pt-2">
+                      <a href="#catalogue" className="px-6 py-3.5 rounded-full bg-[#C89B3C] text-[#23150E] font-bold text-sm hover:bg-[#E5B85C] transition shadow-lg">
+                        Shop Flavour Boxes ↓
+                      </a>
                       <button
-                        key={tab.id}
-                        type="button"
-                        onClick={() => setPaymentTab(tab.id)}
-                        className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 text-xs font-bold cursor-pointer ${
-                          paymentTab === tab.id
-                            ? 'border-[#1E130C] bg-[#1E130C] text-[#FAF6F0]'
-                            : 'border-[#1E130C]/15 bg-white text-[#1E130C]'
-                        }`}
+                        onClick={() => setTrackOpen(true)}
+                        className="px-6 py-3.5 rounded-full bg-white/10 text-white font-semibold text-sm hover:bg-white/20 transition border border-white/15"
                       >
-                        <Icon className="w-4 h-4 text-[#C89B3C]" />
-                        <span>{tab.label}</span>
+                        Track Live Order
                       </button>
+                    </div>
+                  </div>
+                  <div className="hidden lg:flex absolute right-12 top-1/2 -translate-y-1/2 w-72 h-72 rounded-full bg-[#C89B3C]/15 border border-[#C89B3C]/30 items-center justify-center text-8xl">
+                    ☕
+                  </div>
+                </div>
+
+                {/* Trust Badges */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
+                  {[
+                    ['🔥 45-Min Leak-Proof', 'Holds hot coffee & chai'],
+                    ['🌾 100% Vegetarian', 'FSSAI Certified Bakery'],
+                    ['♻️ Zero Plastic Waste', '100% Biodegradable & Edible'],
+                    ['🚚 Pan-India Shipping', '48-Hour Dispatch']
+                  ].map(([title, sub]) => (
+                    <div key={title} className="bg-white rounded-2xl p-4 border border-[#23150E]/10">
+                      <div className="font-bold text-sm text-[#23150E]">{title}</div>
+                      <div className="text-xs text-[#6B5344] mt-0.5">{sub}</div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* Product Catalogue */}
+              <section id="catalogue" className="max-w-7xl mx-auto px-4 sm:px-6 pb-20">
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-2">
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-widest text-[#8C5228]">Artisan Collection</span>
+                    <h2 className="font-serif-luxury text-3xl sm:text-4xl font-bold text-[#23150E]">Choose Your Flavour Box</h2>
+                  </div>
+                  <p className="text-xs text-[#6B5344]">Select pack size (12, 24, or 50 cups) for instant café savings</p>
+                </div>
+
+                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {products.map((product) => {
+                    const activeIdx = selectedPacks[product.id] || 0;
+                    const activePack = product.packOptions[activeIdx];
+                    const price = Math.round(product.basePrice * activePack.multiplier);
+
+                    return (
+                      <div key={product.id} className="bg-white rounded-3xl p-5 border border-[#23150E]/10 shadow-sm hover:shadow-xl transition flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#FAF6F0] text-[#8C5228] border border-[#8C5228]/20">
+                              {product.badge}
+                            </span>
+                            <span className="text-xs font-bold text-[#23150E]">★ {product.rating} ({product.reviews})</span>
+                          </div>
+
+                          <CupIllustration flavour={product.flavour} accent={product.accent} />
+
+                          <h3 className="font-serif-luxury font-bold text-xl mt-4 text-[#23150E] leading-snug">{product.name}</h3>
+                          <p className="text-xs font-semibold text-[#8C5228] mt-1">{product.tagline}</p>
+                          <p className="text-xs text-[#6B5344] mt-2 leading-relaxed">{product.description}</p>
+
+                          {/* Pack Size Selector */}
+                          <div className="mt-4">
+                            <div className="text-[11px] font-bold uppercase text-[#6B5344] mb-1.5">Select Pack Size:</div>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              {product.packOptions.map((opt, idx) => (
+                                <button
+                                  key={opt.size}
+                                  onClick={() => setSelectedPacks({ ...selectedPacks, [product.id]: idx })}
+                                  className={`py-2 px-1.5 rounded-xl text-center border transition ${
+                                    activeIdx === idx
+                                      ? 'bg-[#23150E] text-[#FAF6F0] border-[#23150E]'
+                                      : 'bg-[#FAF6F0] text-[#23150E] border-[#23150E]/15 hover:border-[#23150E]'
+                                  }`}
+                                >
+                                  <div className="text-[11px] font-bold">{opt.count} Cups</div>
+                                  {opt.label && <div className="text-[9px] text-[#E5B85C] font-semibold">{opt.label}</div>}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-5 pt-4 border-t border-[#23150E]/10 flex items-center justify-between">
+                          <div>
+                            <span className="text-2xl font-bold text-[#23150E]">₹{price}</span>
+                            <span className="block text-[11px] text-[#6B5344]">₹{Math.round(price / activePack.count)} / cup • {product.stock} left</span>
+                          </div>
+                          <button
+                            onClick={() => addToCart(product)}
+                            className="px-4 py-2.5 rounded-full bg-[#23150E] text-[#FAF6F0] text-xs font-bold hover:bg-[#C89B3C] hover:text-[#23150E] transition shadow"
+                          >
+                            + Add Box
+                          </button>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
+              </section>
+            </main>
+          )}
 
-                {paymentTab === 'upi' && (
-                  <div className="p-4 rounded-2xl bg-white border border-[#1E130C]/10 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#1E130C]">
-                        Pay via GPay / PhonePe / Paytm UPI
-                      </span>
-                      <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">
-                        0% MDR Fee
-                      </span>
-                    </div>
-                    <input
-                      type="text"
-                      value={upiId}
-                      onChange={(e) => setUpiId(e.target.value)}
-                      placeholder="Enter UPI ID (e.g. name@okaxis)"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#1E130C]/15 text-sm font-medium"
-                    />
-                  </div>
-                )}
-
-                {paymentTab === 'card' && (
-                  <div className="p-4 rounded-2xl bg-white border border-[#1E130C]/10 space-y-3">
-                    <input
-                      type="text"
-                      defaultValue="4532 •••• •••• 8891"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#1E130C]/15 text-sm font-mono"
-                    />
-                    <div className="grid grid-cols-2 gap-3">
-                      <input
-                        type="text"
-                        defaultValue="09/29"
-                        className="px-3.5 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#1E130C]/15 text-sm font-mono"
-                      />
-                      <input
-                        type="password"
-                        defaultValue="123"
-                        className="px-3.5 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#1E130C]/15 text-sm font-mono"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {paymentTab === 'netbanking' && (
-                  <div className="p-4 rounded-2xl bg-white border border-[#1E130C]/10">
-                    <select className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#1E130C]/15 text-sm font-semibold">
-                      <option>HDFC Bank Retail</option>
-                      <option>ICICI Bank NetBanking</option>
-                      <option>State Bank of India</option>
-                      <option>Axis Bank</option>
-                    </select>
-                  </div>
-                )}
-
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setCheckoutStep('address')}
-                    className="px-4 py-3.5 rounded-xl border border-[#1E130C]/20 text-xs font-bold cursor-pointer"
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleCompletePayment}
-                    className="flex-1 py-3.5 rounded-xl bg-[#C89B3C] hover:bg-[#B88B2E] text-[#1E130C] font-extrabold text-sm shadow-lg cursor-pointer"
-                  >
-                    Pay ₹{grandTotal} & Generate GST Invoice
-                  </button>
-                </div>
+          {/* Footer */}
+          <footer className="bg-[#23150E] text-[#FAF6F0]/75 py-10 px-4 sm:px-6 text-xs">
+            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <span className="font-serif-luxury text-lg font-bold text-white">CUP2EAT – Eat Your Drink!</span>
+                <p className="mt-1">Edible Biscuit Cups • FSSAI Certified • Zero Recurring Software Fee Architecture</p>
               </div>
-            )}
-
-            {checkoutStep === 'processing' && (
-              <div className="p-12 text-center space-y-4">
-                <div className="w-12 h-12 rounded-full border-4 border-[#C89B3C] border-t-transparent animate-spin mx-auto" />
-                <h4 className="font-extrabold text-lg text-[#1E130C]">
-                  Confirming Payment & Updating Live Stock...
-                </h4>
-                <p className="text-xs text-[#6E4735]">
-                  Writing order to Cloud Firestore & preparing printable GST invoice
-                </p>
+              <div className="flex gap-4">
+                <button onClick={() => setTrackOpen(true)} className="hover:text-white underline">Track Order</button>
+                <button onClick={() => setAdminMode(true)} className="hover:text-white underline">Owner Admin</button>
+                <a href="https://wa.me/919818192575" target="_blank" rel="noreferrer" className="hover:text-white underline">WhatsApp Concierge</a>
               </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ===================================================================== */}
-      {/* CUSTOMER AUTH MODAL (OTP Login + Real Firebase Email/Password)        */}
-      {/* ===================================================================== */}
-      {isAuthModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-3xl bg-[#FAF6F0] border border-[#1E130C]/15 shadow-2xl overflow-hidden">
-            <div className="p-5 bg-[#1E130C] text-[#FAF6F0] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Coffee className="w-5 h-5 text-[#C89B3C]" />
-                <h3 className="font-extrabold text-lg">CUP2EAT Customer Account</h3>
-              </div>
-              <button
-                onClick={() => setIsAuthModalOpen(false)}
-                className="p-1.5 rounded-lg hover:bg-white/10 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
+          </footer>
 
-            {/* Auth Method Switcher */}
-            <div className="grid grid-cols-2 border-b border-[#1E130C]/10 bg-[#F3ECE1]">
-              <button
-                onClick={() => {
-                  setAuthTab('otp');
-                  setOtpSent(false);
-                }}
-                className={`py-3 text-xs font-extrabold cursor-pointer ${
-                  authTab === 'otp'
-                    ? 'bg-[#FAF6F0] text-[#1E130C] border-b-2 border-[#C89B3C]'
-                    : 'text-[#6E4735]'
-                }`}
-              >
-                Phone / Email OTP
-              </button>
-              <button
-                onClick={() => setAuthTab('email')}
-                className={`py-3 text-xs font-extrabold cursor-pointer ${
-                  authTab === 'email'
-                    ? 'bg-[#FAF6F0] text-[#1E130C] border-b-2 border-[#C89B3C]'
-                    : 'text-[#6E4735]'
-                }`}
-              >
-                Email & Password
-              </button>
-            </div>
+          {/* Floating WhatsApp Concierge */}
+          <a
+            href="https://wa.me/919818192575?text=Hi%20CUP2EAT!%20I%20want%20to%20order%20edible%20cup%20boxes."
+            target="_blank"
+            rel="noreferrer"
+            className="fixed bottom-5 right-5 z-40 bg-[#25D366] text-white px-4 py-3 rounded-full shadow-2xl font-bold text-xs flex items-center gap-2 hover:scale-105 transition"
+          >
+            <span>💬 WhatsApp Support</span>
+          </a>
 
-            {authTab === 'otp' ? (
-              !otpSent ? (
-                <form onSubmit={handleSendOtp} className="p-6 space-y-4">
-                  <p className="text-xs text-[#6E4735] leading-relaxed">
-                    Sign in with your <strong>Phone Number</strong> or{' '}
-                    <strong>Email ID</strong> via instant OTP to track your orders and
-                    download GST invoices.
-                  </p>
-                  <div>
-                    <label className="block text-xs font-bold mb-1">Your Name</label>
+          {/* OTP LOGIN MODAL */}
+          {authOpen && (
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative">
+                <button onClick={() => { setAuthOpen(false); setOtpStep(false); }} className="absolute top-5 right-5 text-sm font-bold text-[#6B5344]">✕</button>
+                <span className="text-xs font-bold uppercase tracking-widest text-[#C89B3C]">Instant Verification</span>
+                <h3 className="font-serif-luxury text-2xl font-bold mt-1">Login via Mobile OTP</h3>
+                <p className="text-xs text-[#6B5344] mt-1">No passwords to remember. Track orders & download GST invoices.</p>
+
+                {!otpStep ? (
+                  <form onSubmit={handleSendOtp} className="mt-5 space-y-3">
                     <input
                       type="text"
-                      value={authName}
-                      onChange={(e) => setAuthName(e.target.value)}
-                      placeholder="e.g. Ananya Singh"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#1E130C]/15 text-sm"
+                      placeholder="Your Full Name"
+                      value={nameInput}
+                      onChange={(e) => setNameInput(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-[#23150E]/20 text-sm"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold mb-1">
-                      Mobile Number or Email ID *
-                    </label>
                     <input
+                      type="tel"
                       required
-                      type="text"
-                      value={authIdentifier}
-                      onChange={(e) => setAuthIdentifier(e.target.value)}
-                      placeholder="+91 98181 92575 or you@gmail.com"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#1E130C]/15 text-sm"
+                      placeholder="10-Digit Mobile Number (e.g. 9818192575)"
+                      value={phoneInput}
+                      onChange={(e) => setPhoneInput(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-[#23150E]/20 text-sm"
                     />
-                  </div>
-                  <button
-                    type="submit"
-                    className="w-full py-3.5 rounded-xl bg-[#1E130C] hover:bg-[#3B2314] text-[#FAF6F0] font-extrabold text-sm cursor-pointer"
-                  >
-                    Send 4-Digit Verification OTP
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleVerifyOtp} className="p-6 space-y-4">
-                  <div className="p-3 rounded-xl bg-[#C89B3C]/20 border border-[#C89B3C]/40 text-xs text-[#1E130C]">
-                    Instant Pitch OTP for <strong>{authIdentifier}</strong>:{' '}
-                    <span className="font-mono font-extrabold text-sm underline">
-                      {generatedOtp}
-                    </span>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold mb-1">
-                      Enter 4-Digit OTP *
-                    </label>
+                    <button type="submit" className="w-full py-3.5 rounded-xl bg-[#23150E] text-white font-bold text-sm">
+                      Send 4-Digit OTP →
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleVerifyOtp} className="mt-5 space-y-3">
+                    <div className="text-xs bg-[#FAF6F0] p-3 rounded-xl">
+                      OTP sent to <strong>{phoneInput}</strong> (Demo OTP: <strong>1234</strong>)
+                    </div>
                     <input
+                      type="text"
                       required
                       maxLength={4}
-                      type="text"
+                      placeholder="Enter 4-digit OTP (1234)"
                       value={otpInput}
                       onChange={(e) => setOtpInput(e.target.value)}
-                      placeholder={generatedOtp}
-                      className="w-full px-4 py-3 rounded-xl bg-white border border-[#1E130C]/20 text-center text-xl font-mono font-extrabold tracking-[0.5em]"
+                      className="w-full px-4 py-3 rounded-xl border border-[#23150E]/20 text-center tracking-[0.5em] font-bold text-lg"
                     />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={authLoading}
-                    className="w-full py-3.5 rounded-xl bg-[#C89B3C] hover:bg-[#B88B2E] text-[#1E130C] font-extrabold text-sm cursor-pointer"
-                  >
-                    {authLoading ? 'Verifying...' : 'Verify & Access Account'}
-                  </button>
-                </form>
-              )
-            ) : (
-              <form onSubmit={handleEmailAuthSubmit} className="p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#6E4735]">
-                    {emailMode === 'login'
-                      ? 'Existing Firebase Account'
-                      : 'Create New Customer Account'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setEmailMode(emailMode === 'login' ? 'register' : 'login')
-                    }
-                    className="text-xs font-extrabold text-[#8C522B] underline cursor-pointer"
-                  >
-                    {emailMode === 'login' ? 'Register Instead' : 'Sign In Instead'}
-                  </button>
-                </div>
-
-                {emailMode === 'register' && (
-                  <div>
-                    <label className="block text-xs font-bold mb-1">Full Name</label>
-                    <input
-                      type="text"
-                      value={authName}
-                      onChange={(e) => setAuthName(e.target.value)}
-                      placeholder="e.g. Kabir Malhotra"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#1E130C]/15 text-sm"
-                    />
-                  </div>
+                    <button type="submit" className="w-full py-3.5 rounded-xl bg-[#C89B3C] text-[#23150E] font-bold text-sm">
+                      Verify & Continue
+                    </button>
+                  </form>
                 )}
-
-                <div>
-                  <label className="block text-xs font-bold mb-1">Email Address *</label>
-                  <input
-                    required
-                    type="email"
-                    value={authEmail}
-                    onChange={(e) => setAuthEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#1E130C]/15 text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold mb-1">Password *</label>
-                  <input
-                    required
-                    type="password"
-                    minLength={6}
-                    value={authPassword}
-                    onChange={(e) => setAuthPassword(e.target.value)}
-                    placeholder="Minimum 6 characters"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#1E130C]/15 text-sm"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={authLoading}
-                  className="w-full py-3.5 rounded-xl bg-[#1E130C] hover:bg-[#3B2314] text-[#FAF6F0] font-extrabold text-sm cursor-pointer"
-                >
-                  {authLoading
-                    ? 'Authenticating...'
-                    : emailMode === 'login'
-                    ? 'Sign In with Email'
-                    : 'Create Account'}
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ===================================================================== */}
-      {/* LIVE CUSTOMER ORDER TRACKING DRAWER (Firestore onSnapshot Synced)     */}
-      {/* ===================================================================== */}
-      {isOrdersOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-xl bg-[#FAF6F0] h-full shadow-2xl flex flex-col">
-            <div className="p-5 bg-[#1E130C] text-[#FAF6F0] flex items-center justify-between">
-              <div>
-                <h3 className="font-extrabold text-lg">
-                  My Orders & Real-Time Tracking
-                </h3>
-                <p className="text-xs text-[#E9C476]">
-                  Live synced — status updates automatically when dispatched
-                </p>
               </div>
-              <button
-                onClick={() => setIsOrdersOpen(false)}
-                className="p-1.5 rounded-lg hover:bg-white/10 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
+          )}
 
-            <div className="flex-1 overflow-y-auto p-5 space-y-5">
-              {customerVisibleOrders.map((ord) => {
-                const currentStageIdx = Math.max(0, ORDER_STAGES.indexOf(ord.status));
-                return (
-                  <div
-                    key={ord.id}
-                    className="p-5 rounded-3xl bg-white border border-[#1E130C]/10 shadow-sm space-y-4"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1E130C]/10 pb-3">
-                      <div>
-                        <span className="text-xs font-extrabold text-[#8C522B]">
-                          ORDER #{ord.id}
-                        </span>
-                        <p className="text-xs text-[#6E4735]">{ord.date}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-extrabold text-[#1E130C]">
-                          ₹{ord.total}
-                        </span>
-                        <button
-                          onClick={() => setActiveInvoiceOrder(ord)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#1E130C] text-[#FAF6F0] text-xs font-bold hover:bg-[#3B2314] cursor-pointer"
-                        >
-                          <FileText className="w-3.5 h-3.5 text-[#C89B3C]" />
-                          <span>GST Invoice</span>
-                        </button>
-                      </div>
+          {/* SLIDE-OVER CART & RAZORPAY CHECKOUT */}
+          {cartOpen && (
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-end">
+              <div className="bg-[#FAF6F0] w-full max-w-md h-full flex flex-col justify-between p-6 overflow-y-auto shadow-2xl">
+                <div>
+                  <div className="flex items-center justify-between border-b border-[#23150E]/10 pb-4">
+                    <h3 className="font-serif-luxury text-2xl font-bold">Your Tasting Bag ({totalItems})</h3>
+                    <button onClick={() => setCartOpen(false)} className="text-sm font-bold px-2 py-1">✕</button>
+                  </div>
+
+                  {cart.length === 0 ? (
+                    <div className="py-16 text-center space-y-3">
+                      <div className="text-5xl">☕</div>
+                      <p className="text-sm font-semibold text-[#6B5344]">Your edible cup bag is empty.</p>
+                      <button onClick={() => setCartOpen(false)} className="px-5 py-2.5 rounded-full bg-[#23150E] text-white text-xs font-bold">
+                        Explore Flavours
+                      </button>
                     </div>
-
-                    <div className="space-y-1">
-                      {ord.items?.map((item, idx) => (
-                        <div
-                          key={idx}
-                          className="flex justify-between text-xs text-[#3B2314]"
-                        >
-                          <span>
-                            <strong>{item.qty}x</strong> {item.name} ({item.packSize})
-                          </span>
-                          <span className="font-bold">
-                            ₹{item.unitPrice * item.qty}
-                          </span>
+                  ) : (
+                    <div className="mt-4 space-y-4">
+                      {cart.map((item) => (
+                        <div key={item.key} className="bg-white p-3.5 rounded-2xl border border-[#23150E]/10 flex items-center justify-between gap-3">
+                          <div>
+                            <div className="font-bold text-sm">{item.name}</div>
+                            <div className="text-xs text-[#6B5344]">{item.packSize} • ₹{item.unitPrice} each</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => updateCartQty(item.key, -1)} className="w-7 h-7 rounded-lg bg-[#FAF6F0] font-bold">-</button>
+                            <span className="text-xs font-bold w-5 text-center">{item.qty}</span>
+                            <button onClick={() => updateCartQty(item.key, 1)} className="w-7 h-7 rounded-lg bg-[#FAF6F0] font-bold">+</button>
+                          </div>
                         </div>
                       ))}
-                    </div>
 
-                    {/* 4-Step Real-Time Progress Bar */}
-                    <div className="pt-2">
-                      <div className="flex items-center justify-between text-[11px] font-bold text-[#6E4735] mb-2">
-                        <span>Live Shipment Stage</span>
-                        <span className="text-[#8C522B]">{ord.status}</span>
+                      {/* Promo Code */}
+                      <div className="bg-white p-3.5 rounded-2xl border border-[#23150E]/10 flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Promo code (try CUP10)"
+                          value={promoCode}
+                          onChange={(e) => setPromoCode(e.target.value)}
+                          className="flex-1 text-xs px-3 py-2 rounded-xl bg-[#FAF6F0] uppercase font-semibold"
+                        />
+                        <button
+                          onClick={() => {
+                            if (promoCode.trim().toUpperCase() === 'CUP10') {
+                              setPromoApplied(true);
+                              showToast('CUP10 applied! 10% savings unlocked');
+                            } else {
+                              showToast('Try code CUP10');
+                            }
+                          }}
+                          className="px-4 py-2 rounded-xl bg-[#23150E] text-white text-xs font-bold"
+                        >
+                          Apply
+                        </button>
                       </div>
-                      <div className="grid grid-cols-4 gap-1.5">
-                        {ORDER_STAGES.map((stage, idx) => {
-                          const completed = idx <= currentStageIdx;
-                          return (
-                            <div key={stage} className="space-y-1.5">
-                              <div
-                                className={`h-2 rounded-full transition-all ${
-                                  completed ? 'bg-[#C89B3C]' : 'bg-[#F3ECE1]'
-                                }`}
-                              />
-                              <p
-                                className={`text-[10px] leading-tight font-bold ${
-                                  completed ? 'text-[#1E130C]' : 'text-[#6E4735]/60'
-                                }`}
-                              >
-                                {stage}
-                              </p>
-                            </div>
-                          );
-                        })}
+
+                      {/* Delivery & Payment */}
+                      <div className="bg-white p-4 rounded-2xl border border-[#23150E]/10 space-y-3">
+                        <div>
+                          <label className="text-[11px] font-bold uppercase text-[#6B5344]">Delivery Address</label>
+                          <textarea
+                            rows={2}
+                            value={address}
+                            onChange={(e) => setAddress(e.target.value)}
+                            className="w-full mt-1 p-2.5 rounded-xl bg-[#FAF6F0] text-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-bold uppercase text-[#6B5344]">Payment Mode</label>
+                          <select
+                            value={payMethod}
+                            onChange={(e) => setPayMethod(e.target.value)}
+                            className="w-full mt-1 p-2.5 rounded-xl bg-[#FAF6F0] text-xs font-semibold"
+                          >
+                            <option>UPI Instant (Razorpay)</option>
+                            <option>Credit / Debit Card</option>
+                            <option>NetBanking</option>
+                          </select>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ===================================================================== */}
-      {/* AUTOMATED PRINTABLE GST TAX INVOICE MODAL                             */}
-      {/* ===================================================================== */}
-      {activeInvoiceOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
-          <div className="w-full max-w-2xl rounded-3xl bg-white border border-[#1E130C]/15 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
-            <div className="px-6 py-4 bg-[#1E130C] text-[#FAF6F0] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-[#C89B3C]" />
-                <span className="font-extrabold text-sm">
-                  GST Tax Invoice — #{activeInvoiceOrder.id}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => window.print()}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#C89B3C] text-[#1E130C] text-xs font-extrabold hover:brightness-105 cursor-pointer"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Print / Download PDF</span>
-                </button>
-                <button
-                  onClick={() => setActiveInvoiceOrder(null)}
-                  className="p-1.5 rounded-lg hover:bg-white/10 cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 sm:p-8 overflow-y-auto space-y-6 text-[#1E130C]">
-              <div className="flex flex-wrap justify-between items-start gap-4 border-b border-[#1E130C]/15 pb-6">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <Coffee className="w-6 h-6 text-[#C89B3C]" />
-                    <span className="text-2xl font-black tracking-tight">CUP2EAT</span>
-                  </div>
-                  <p className="text-xs font-bold uppercase tracking-widest text-[#8C522B] mt-0.5">
-                    Eat Your Drink! • Zero-Waste Edible Tableware
-                  </p>
-                  <p className="text-xs text-[#6E4735] mt-2">
-                    New Delhi, India • +91 98181 92575 • Varunkhera6@gmail.com
-                  </p>
-                  <p className="text-xs text-[#6E4735]">
-                    FSSAI Lic: 13324009001842 • GSTIN: 07AABCC2E19Z5 • HSN: 19053290
-                  </p>
-                </div>
-
-                <div className="text-right">
-                  <span className="inline-block px-3 py-1 rounded-full border-2 border-emerald-600 text-emerald-700 font-black text-xs uppercase tracking-widest">
-                    PAID & VERIFIED
-                  </span>
-                  <p className="text-xs font-bold mt-2">
-                    Invoice No: INV-{activeInvoiceOrder.id}
-                  </p>
-                  <p className="text-xs text-[#6E4735]">
-                    Date: {activeInvoiceOrder.date}
-                  </p>
-                  <p className="text-xs text-[#6E4735]">
-                    Payment: {activeInvoiceOrder.paymentMethod}
-                  </p>
-                </div>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-[#FAF6F0] border border-[#1E130C]/10">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-[#8C522B]">
-                  Billed & Shipped To
-                </p>
-                <p className="font-extrabold text-sm mt-1">
-                  {activeInvoiceOrder.customerName}
-                </p>
-                <p className="text-xs text-[#3B2314] mt-0.5">
-                  {activeInvoiceOrder.address}
-                </p>
-                <p className="text-xs text-[#6E4735] mt-0.5">
-                  Phone: {activeInvoiceOrder.customerPhone} • Email:{' '}
-                  {activeInvoiceOrder.customerEmail}
-                </p>
-              </div>
-
-              <table className="w-full text-left border-collapse text-xs sm:text-sm">
-                <thead>
-                  <tr className="border-b-2 border-[#1E130C]/20 text-[#6E4735] uppercase text-[11px]">
-                    <th className="py-2.5">Item & Flavour Box</th>
-                    <th className="py-2.5 text-center">HSN</th>
-                    <th className="py-2.5 text-center">Qty</th>
-                    <th className="py-2.5 text-right">Rate</th>
-                    <th className="py-2.5 text-right">Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#1E130C]/10">
-                  {activeInvoiceOrder.items?.map((item, idx) => (
-                    <tr key={idx}>
-                      <td className="py-3">
-                        <p className="font-bold">{item.name}</p>
-                        <p className="text-xs text-[#6E4735]">{item.packSize}</p>
-                      </td>
-                      <td className="py-3 text-center text-xs text-[#6E4735]">
-                        19053290
-                      </td>
-                      <td className="py-3 text-center font-semibold">{item.qty}</td>
-                      <td className="py-3 text-right">₹{item.unitPrice}</td>
-                      <td className="py-3 text-right font-bold">
-                        ₹{item.unitPrice * item.qty}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              <div className="flex flex-wrap items-end justify-between gap-4 pt-2">
-                <div className="px-4 py-3 rounded-2xl border-2 border-dashed border-[#C89B3C] text-center">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[#8C522B]">
-                    Authorized Brand Seal
-                  </p>
-                  <p className="text-sm font-black text-[#1E130C] mt-0.5">
-                    CUP2EAT INDIA
-                  </p>
-                  <p className="text-[10px] text-[#6E4735]">Digitally Signed</p>
-                </div>
-
-                <div className="w-full sm:w-64 space-y-1.5 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-[#6E4735]">Taxable Subtotal</span>
-                    <span className="font-bold">₹{activeInvoiceOrder.subtotal}</span>
-                  </div>
-                  {activeInvoiceOrder.discount > 0 && (
-                    <div className="flex justify-between text-emerald-700">
-                      <span>Promo Discount</span>
-                      <span>-₹{activeInvoiceOrder.discount}</span>
                     </div>
                   )}
-                  <div className="flex justify-between">
-                    <span className="text-[#6E4735]">CGST (2.5%) + SGST (2.5%)</span>
-                    <span>₹{activeInvoiceOrder.gst}</span>
+                </div>
+
+                {cart.length > 0 && (
+                  <div className="border-t border-[#23150E]/10 pt-4 mt-6 space-y-2 text-xs">
+                    <div className="flex justify-between"><span>Subtotal</span><span>₹{subtotal}</span></div>
+                    {promoApplied && <div className="flex justify-between text-emerald-700 font-semibold"><span>Promo (CUP10)</span><span>-₹{discount}</span></div>}
+                    <div className="flex justify-between"><span>GST (5%)</span><span>₹{gst}</span></div>
+                    <div className="flex justify-between text-base font-bold pt-2 border-t border-[#23150E]/10">
+                      <span>Total Payable</span><span>₹{grandTotal}</span>
+                    </div>
+                    <button
+                      onClick={handlePlaceOrder}
+                      className="w-full mt-3 py-3.5 rounded-2xl bg-[#23150E] text-[#FAF6F0] font-bold text-sm hover:bg-[#3B2314] shadow-lg"
+                    >
+                      Pay ₹{grandTotal} & Generate GST Invoice →
+                    </button>
                   </div>
-                  <div className="flex justify-between text-base font-black pt-2 border-t border-[#1E130C]/20">
-                    <span>Grand Total Paid</span>
-                    <span>₹{activeInvoiceOrder.total}</span>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* ===================================================================== */}
-      {/* OWNER ADMIN PIN MODAL                                                 */}
-      {/* ===================================================================== */}
-      {isAdminLoginOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-xs">
-          <div className="w-full max-w-sm rounded-3xl bg-[#FAF6F0] border border-[#1E130C]/15 shadow-2xl overflow-hidden">
-            <div className="p-5 bg-[#1E130C] text-[#FAF6F0] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Lock className="w-4 h-4 text-[#C89B3C]" />
-                <h3 className="font-extrabold text-base">Owner Admin Access</h3>
-              </div>
-              <button
-                onClick={() => setIsAdminLoginOpen(false)}
-                className="p-1 rounded-lg hover:bg-white/10 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleAdminLoginSubmit} className="p-6 space-y-4">
-              <p className="text-xs text-[#6E4735]">
-                Enter Owner PIN (<strong>2026</strong>) to manage live Firestore
-                inventory, pricing, and customer order statuses.
-              </p>
-              <div>
-                <label className="block text-xs font-bold mb-1">Owner PIN</label>
-                <input
-                  type="password"
-                  value={adminPin}
-                  onChange={(e) => setAdminPin(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#1E130C]/20 text-center font-mono text-lg font-bold"
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full py-3 rounded-xl bg-[#1E130C] text-[#FAF6F0] font-extrabold text-sm hover:bg-[#3B2314] cursor-pointer"
-              >
-                Unlock Owner Control Center
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ===================================================================== */}
-      {/* ADMIN: ADD NEW FLAVOUR MODAL                                          */}
-      {/* ===================================================================== */}
-      {newProductModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-3xl bg-[#FAF6F0] border border-[#1E130C]/15 shadow-2xl overflow-hidden">
-            <div className="p-5 bg-[#1E130C] text-[#FAF6F0] flex items-center justify-between">
-              <h3 className="font-extrabold text-base">Launch New Edible Cup SKU</h3>
-              <button
-                onClick={() => setNewProductModal(false)}
-                className="p-1 rounded-lg hover:bg-white/10 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleCreateNewProduct} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-bold mb-1">Product Name *</label>
-                <input
-                  required
-                  type="text"
-                  value={newProdForm.name}
-                  onChange={(e) =>
-                    setNewProdForm({ ...newProdForm, name: e.target.value })
-                  }
-                  placeholder="e.g. Roasted Hazelnut Mocha Edible Cups"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#1E130C]/15 text-sm"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold mb-1">Flavour</label>
-                  <select
-                    value={newProdForm.flavour}
-                    onChange={(e) =>
-                      setNewProdForm({ ...newProdForm, flavour: e.target.value })
-                    }
-                    className="w-full px-3 py-2.5 rounded-xl bg-white border border-[#1E130C]/15 text-sm"
-                  >
-                    <option value="Chocolate">Chocolate</option>
-                    <option value="Vanilla">Vanilla</option>
-                    <option value="Elaichi">Elaichi</option>
-                    <option value="Assorted">Assorted</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold mb-1">
-                    Box of 12 Price (₹)
-                  </label>
-                  <input
-                    type="number"
-                    value={newProdForm.basePrice}
-                    onChange={(e) =>
-                      setNewProdForm({ ...newProdForm, basePrice: e.target.value })
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#1E130C]/15 text-sm"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold mb-1">Tagline</label>
-                <input
-                  type="text"
-                  value={newProdForm.tagline}
-                  onChange={(e) =>
-                    setNewProdForm({ ...newProdForm, tagline: e.target.value })
-                  }
-                  placeholder="Crisp Wafer • Holds Hot Espresso 45+ Mins"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#1E130C]/15 text-sm"
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full py-3 rounded-xl bg-[#C89B3C] text-[#1E130C] font-extrabold text-sm cursor-pointer"
-              >
-                Publish Live to Cloud Store
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ===================================================================== */}
-      {/* FLOATING WHATSAPP CONCIERGE WIDGET (+91 98181 92575)                  */}
-      {/* ===================================================================== */}
-      <div className="fixed bottom-5 right-5 z-40">
-        {isWhatsAppOpen && (
-          <div className="mb-3 w-80 rounded-3xl bg-white border border-[#1E130C]/15 shadow-2xl overflow-hidden">
-            <div className="p-4 bg-[#1F6E43] text-white flex items-center justify-between">
-              <div>
-                <p className="font-extrabold text-sm">CUP2EAT WhatsApp Concierge</p>
-                <p className="text-[11px] text-emerald-100">
-                  Direct to Varun • +91 98181 92575
+          {/* ORDER CONFIRMATION MODAL */}
+          {checkoutSuccess && (
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl max-w-md w-full p-7 text-center shadow-2xl space-y-4">
+                <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-2xl mx-auto font-bold">✓</div>
+                <h3 className="font-serif-luxury text-2xl font-bold">Order Confirmed!</h3>
+                <p className="text-xs text-[#6B5344]">
+                  Order <strong>{checkoutSuccess.id}</strong> is queued for fresh baking. Payment ID: <span className="font-mono">{checkoutSuccess.paymentId}</span>
                 </p>
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={() => { setInvoiceOrder(checkoutSuccess); setCheckoutSuccess(null); }}
+                    className="flex-1 py-3 rounded-xl bg-[#23150E] text-white text-xs font-bold"
+                  >
+                    📄 View GST Invoice
+                  </button>
+                  <button
+                    onClick={() => { setTrackOpen(true); setCheckoutSuccess(null); }}
+                    className="flex-1 py-3 rounded-xl bg-[#FAF6F0] border border-[#23150E]/20 text-xs font-bold"
+                  >
+                    🚚 Track Status
+                  </button>
+                </div>
               </div>
-              <button
-                onClick={() => setIsWhatsAppOpen(false)}
-                className="p-1 rounded-lg hover:bg-white/10 cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
             </div>
-            <div className="p-4 space-y-3 bg-[#FAF6F0]">
-              <div className="p-3 rounded-2xl bg-white text-xs text-[#1E130C] shadow-2xs">
-                Namaste! Need bulk café boxes, party packs, or help tracking an order?
-                Chat directly with Varun on WhatsApp.
-              </div>
-              <textarea
-                rows={2}
-                value={waMessage}
-                onChange={(e) => setWaMessage(e.target.value)}
-                className="w-full p-2.5 rounded-xl bg-white border border-[#1E130C]/15 text-xs focus:outline-none"
-              />
-              <a
-                href={`https://wa.me/919818192575?text=${encodeURIComponent(waMessage)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full py-2.5 rounded-xl bg-[#25D366] hover:bg-[#20BD5A] text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow"
-              >
-                <MessageCircle className="w-4 h-4" />
-                <span>Message on WhatsApp</span>
-              </a>
-            </div>
-          </div>
-        )}
+          )}
 
-        <button
-          onClick={() => setIsWhatsAppOpen(!isWhatsAppOpen)}
-          className="ml-auto flex items-center gap-2.5 px-4 py-3.5 rounded-full bg-[#25D366] hover:bg-[#20BD5A] text-white font-extrabold text-sm shadow-2xl transition-transform hover:scale-105 cursor-pointer"
-          aria-label="WhatsApp Support"
-        >
-          <MessageCircle className="w-5 h-5 fill-current" />
-          <span className="hidden sm:inline">WhatsApp Concierge</span>
-        </button>
-      </div>
-    </div>
-  );
-}
+          {/* LIVE ORDER TRACKING DRAWER */}
+          {trackOpen && (
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl max-h-[85vh] overflow-y-auto">
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="font-serif-luxury text-2xl font-bold">Live Order Tracking</h3>
+                  <button onClick={() => setTrackOpen(false)} className="text-sm font-bold">✕</button>
+                </div>
+                <div className="space-y-5">
+                  {orders.map((ord) => {
+                    const currentIdx = STAGES.indexOf(ord.status);
+                    return (
+                      <div key={ord.id} className="p-4 rounded-2xl bg-[#FAF6F0] border border-[#23150E]/10 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="font-bold text-sm">{ord.id}</span>
+                            <span className="text-xs text-[#6B5344] ml-2">{ord.date}</span>
+                          </div>
+                          <button
+                            onClick={() => { setInvoiceOrder(ord); setTrackOpen(false); }}
+                            className="text-xs font-bold underline text-[#8C5228]"
+                          >
+                            GST Invoice
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-4 gap-1.5 pt-1">
+                          {STAGES.map((stage, idx) => (
+                            <div key={stage} className="space-y-1">
+                              <div className={`h-2 rounded-full ${idx <= currentIdx ? 'bg-[#C89B3C]' : 'bg-[#23150E]/15'}`} />
+                              <div className={`text-[10px] leading-tight ${idx <= currentIdx ? 'font-bold text-[#23150E]' : 'text-[#6B5344]'}`}>
+                                {stage}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* PRINTABLE GST TAX INVOICE MODAL */}
+          {invoiceOrder && (
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+                <div id="printable-invoice" className="space-y-5 text-xs">
+                  <div className="flex justify-between items-start border-b border-gray-200 pb-4">
+                    <div>
+                      <h2 className="font-serif-luxury text-2xl font-bold text-[#23150E]">CUP2EAT FOODS PVT. LTD.</h2>
+                      <p className="text-gray-500 mt-0.5">GSTIN: 07AABCC2E19Z5 • FSSAI: 13326009001482</p>
+                      <p className="text-gray-500">New Delhi, India • support@cup2eat.in</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="px-2.5 py-1 bg-gray-100 font-bold rounded uppercase">Tax Invoice</span>
+                      <p className="font-bold mt-2">#{invoiceOrder.id}</p>
+                      <p className="text-gray-500">{invoiceOrder.date}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 bg-gray-50 p-3.5 rounded-xl">
+                    <div>
+                      <div className="font-bold text-gray-500 uppercase text-[10px]">Billed To</div>
+                      <div className="font-bold text-sm mt-0.5">{invoiceOrder.customerName}</div>
+                      <div>{invoiceOrder.customerPhone}</div>
+                      <div className="text-gray-600 mt-0.5">{invoiceOrder.address}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-gray-500 uppercase text-[10px]">Payment Details</div>
+                      <div className="font-semibold mt-0.5">{invoiceOrder.paymentMethod}</div>
+                      <div className="font-mono text-[11px] text-gray-600">{invoiceOrder.paymentId}</div>
+                      <div className="text-emerald-700 font-bold mt-1">PAID</div>
+                    </div>
+                  </div>
+
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-gray-300 text-[11px] uppercase text-gray-500">
+                        <th className="py-2">Item Description</th>
+                        <th className="py-2">Pack</th>
+                        <th className="py-2 text-right">Qty</th>
+                        <th className="py-2 text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {invoiceOrder.items.map((it, idx) => (
+                        <tr key={idx}>
+                          <td className="py-2.5 font-semibold">{it.name}</td>
+                          <td className="py-2.5">{it.packSize}</td>
+                          <td className="py-2.5 text-right">{it.qty}</td>
+                          <td className="py-2.5 text-right font-semibold">₹{it.unitPrice * it.qty}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  <div className="border-t border-gray-200 pt-3 space-y-1 text-right">
+                    <div>Subtotal: <strong>₹{invoiceOrder.subtotal}</strong></div>
+                    {invoiceOrder.discount > 0 && <div className="text-emerald-700">Discount: <strong>-₹{invoiceOrder.discount}</strong></div>}
+                    <div>CGST + SGST (5%): <strong>₹{invoiceOrder.gst}</strong></div>
+                    <div className="text-base font-bold pt-1">Grand Total: ₹{invoiceOrder.total}</div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200">
+                  <button onClick={() => window.print()} className="flex-1 py-3 rounded-xl bg-[#23150E] text-white font-bold text-xs">
+                    🖨️ Print / Save PDF
+                  </button>
+                  <button onClick={() => setInvoiceOrder(null)} className="px-5 py-3 rounded-xl bg-gray-100 font-bold text-xs">
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
