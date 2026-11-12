@@ -1,7 +1,7 @@
 # Cup2Eat
 CUP2EAT – Eat Your Drink! Luxury D2C edible cup e-commerce storefront &amp; owner admin suite.
 
-**# ☕ CUP2EAT – Eat Your Drink!
+# ☕ CUP2EAT – Eat Your Drink!
 
 Luxury D2C e-commerce storefront and Owner Admin Suite built for **CUP2EAT**, India's edible biscuit coffee cup brand. Engineered as a zero-recurring-cost, high-converting web experience.
 
@@ -20,4 +20,4 @@ Luxury D2C e-commerce storefront and Owner Admin Suite built for **CUP2EAT**, In
 
 - **Frontend:** Semantic HTML5, Tailwind CSS, Vanilla JavaScript (ES6+)
 - **Typography:** Playfair Display & Plus Jakarta Sans
-- **Deployment:** Static zero-server architecture (Vercel / Netlify ready)**
+- **Deployment:** Static zero-server architecture (Vercel / Netlify ready)
